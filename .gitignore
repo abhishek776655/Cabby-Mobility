@@ -1,0 +1,19 @@
+# Maven
+target/
+*.log
+
+# IntelliJ
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Env files
+.env
+
+# Build
+*.class
+
+# Logs
+logs/
