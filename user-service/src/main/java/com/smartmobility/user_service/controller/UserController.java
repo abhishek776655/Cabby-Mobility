@@ -36,7 +36,7 @@ public class UserController {
         UserResponseDTO response = userService.getUserById(id);
 
         return ResponseEntity.ok(
-                ApiResponseBuilder.success(userService.getUserById(id), 200)
+                ApiResponseBuilder.success(response, 200)
         );
     }
 
@@ -49,7 +49,7 @@ public class UserController {
             UserResponseDTO response = userService.getUserByEmail(email);
 
             return ResponseEntity.ok(
-                   ApiResponseBuilder.success(userService.getUserByEmail(email), 200)
+                   ApiResponseBuilder.success(response, 200)
             );
         }
 
