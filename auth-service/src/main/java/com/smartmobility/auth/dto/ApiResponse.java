@@ -1,11 +1,13 @@
-package com.smartmobility.user_service.dto;
+package com.smartmobility.auth.dto;
 
-import lombok.Builder;
-import lombok.Getter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class ApiResponse<T> {
 

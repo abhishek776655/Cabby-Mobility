@@ -1,6 +1,6 @@
-package com.smartmobility.user_service.config;
+package com.smartmobility.auth.util;
 
-import com.smartmobility.user_service.dto.ApiResponse;
+import com.smartmobility.auth.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;

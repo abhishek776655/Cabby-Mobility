@@ -1,13 +1,13 @@
-package com.smartmobility.user_service.dto;
+package com.smartmobility.auth.dto;
 
-import com.smartmobility.user_service.entity.Role;
+import com.smartmobility.auth.entity.Role;
 import lombok.*;
 
 @Getter
-@Builder
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class UserResponseDTO {
 
     private Long userId;

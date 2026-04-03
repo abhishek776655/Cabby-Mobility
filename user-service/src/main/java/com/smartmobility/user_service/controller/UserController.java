@@ -7,6 +7,7 @@ import com.smartmobility.user_service.dto.UserResponseDTO;
 import com.smartmobility.user_service.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,8 +27,7 @@ public class UserController {
         UserResponseDTO response = userService.createUser(dto);
 
         return ResponseEntity
-                .created(URI.create("/internal/users/" + response.getUserId()))
-                .body(ApiResponseBuilder.success(response,201));
+                .ok((ApiResponseBuilder.success(response,"User Created Successfully",HttpStatus.CREATED)));
     }
 
     @GetMapping("/{id}")
@@ -36,7 +36,7 @@ public class UserController {
         UserResponseDTO response = userService.getUserById(id);
 
         return ResponseEntity.ok(
-                ApiResponseBuilder.success(response, 200)
+                ApiResponseBuilder.success(response,"Success" , HttpStatus.OK)
         );
     }
 
@@ -49,7 +49,7 @@ public class UserController {
             UserResponseDTO response = userService.getUserByEmail(email);
 
             return ResponseEntity.ok(
-                   ApiResponseBuilder.success(response, 200)
+                   ApiResponseBuilder.success(response, "Success",HttpStatus.OK)
             );
         }
 
