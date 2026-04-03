@@ -1,6 +1,5 @@
 package com.smartmobility.auth.service.Impl;
 
-import com.smartmobility.auth.exception.GlobalExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.smartmobility.auth.client.UserServiceClient;
@@ -31,8 +30,6 @@ public class AuthServiceImpl implements AuthService {
     private final UserServiceClient userServiceClient;
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenMapper refreshTokenMapper;
-    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
-
     @Override
     public AuthResponseDTO register(RegisterRequestDTO request) {
         if (authCredentialRepository.existsByEmail(request.getEmail())){

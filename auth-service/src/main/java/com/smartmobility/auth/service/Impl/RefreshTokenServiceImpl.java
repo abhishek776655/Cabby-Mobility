@@ -4,7 +4,6 @@ import com.smartmobility.auth.entity.RefreshToken;
 import com.smartmobility.auth.exception.InvalidCredentialsException;
 import com.smartmobility.auth.repository.RefreshTokenRepository;
 import com.smartmobility.auth.service.RefreshTokenService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

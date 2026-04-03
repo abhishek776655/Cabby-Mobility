@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
 
+import java.util.Objects;
+
 @Configuration
 public class RateLimitConfig {
 
@@ -16,11 +18,8 @@ public class RateLimitConfig {
                     .getHeaders()
                     .getFirst("X-User-Id");
 
-            if (userId == null) {
-                return Mono.just("anonymous");
-            }
+            return Mono.just(Objects.requireNonNullElse(userId, "anonymous"));
 
-            return Mono.just(userId);
         };
     }
 }

@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -66,9 +68,9 @@ public class AuthController {
     @PostMapping("/logout-all")
     public ResponseEntity<ApiResponse<Void>> logoutAll() {
 
-        Long userId = (Long) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
+        Long userId = (Long) Objects.requireNonNull(SecurityContextHolder
+                        .getContext()
+                        .getAuthentication())
                 .getPrincipal();
 
         authService.logoutAll(userId);
