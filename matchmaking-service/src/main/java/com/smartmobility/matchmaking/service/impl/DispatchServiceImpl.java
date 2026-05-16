@@ -8,7 +8,8 @@ import com.smartmobility.matchmaking.config.MatchmakingProperties;
 import com.smartmobility.matchmaking.domain.AttemptStatus;
 import com.smartmobility.matchmaking.domain.DispatchStatus;
 import com.smartmobility.matchmaking.dto.DispatchStatusResponse;
-import com.smartmobility.matchmaking.entity.AssignmentAttemptEntity;
+import com.smartmobility.matchmaking.entity.AssignmentAttempt;
+import com.smartmobility.matchmaking.entity.AssignmentStatus;
 import com.smartmobility.matchmaking.entity.DispatchSessionEntity;
 import com.smartmobility.matchmaking.event.*;
 import com.smartmobility.matchmaking.exception.DispatchNotFoundException;
@@ -334,14 +335,12 @@ public class DispatchServiceImpl implements DispatchService {
 
     private void recordAttempt(UUID dispatchId, Long driverId, Double score, 
                                AttemptStatus status, String failureReason) {
-        AssignmentAttemptEntity attempt = new AssignmentAttemptEntity();
-        attempt.setDispatchId(dispatchId);
+        AssignmentAttempt attempt = new AssignmentAttempt();
+        attempt.setRideId(dispatchId);
         attempt.setDriverId(driverId);
         attempt.setScore(score);
-        attempt.setStatus(status);
+        attempt.setStatus(AssignmentStatus.valueOf(status.name()));
         attempt.setFailureReason(failureReason);
-        attempt.setReservationKey(String.format("driver:%s:reservation", driverId));
-        attempt.setCreatedAt(Instant.now());
         
         attemptRepository.save(attempt);
     }
