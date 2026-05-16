@@ -21,4 +21,16 @@ public class RideRequestDTO {
 
     @NotNull
     private String dropLocation;
+
+    @NotNull
+    private Double pickupLatitude;
+
+    @NotNull
+    private Double pickupLongitude;
+
+    @NotNull
+    private Double dropLatitude;
+
+    @NotNull
+    private Double dropLongitude;
 }

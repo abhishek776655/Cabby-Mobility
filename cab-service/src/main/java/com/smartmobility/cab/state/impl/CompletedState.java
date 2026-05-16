@@ -4,12 +4,10 @@ import com.smartmobility.cab.entity.RideEntity;
 import com.smartmobility.cab.exception.InvalidStateTransitionException;
 import com.smartmobility.cab.state.RideState;
 
-import java.util.UUID;
-
 public class CompletedState implements RideState {
 
     public void match(RideEntity ride) { throw error(); }
-    public void assignDriver(RideEntity ride, UUID driverId) { throw error(); }
+    public void assignDriver(RideEntity ride, Long driverId) { throw error(); }
     public void start(RideEntity ride) { throw error(); }
     public void complete(RideEntity ride) { throw error(); }
     public void cancel(RideEntity ride) { throw error(); }

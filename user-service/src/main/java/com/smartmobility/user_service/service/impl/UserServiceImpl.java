@@ -3,13 +3,15 @@ package com.smartmobility.user_service.service.impl;
 import com.smartmobility.user_service.dto.CreateUserDTO;
 import com.smartmobility.user_service.dto.UserResponseDTO;
 import com.smartmobility.user_service.entity.UserEntity;
-import com.smartmobility.user_service.factory.UserRoleStrategyFactory;
 import com.smartmobility.user_service.mapper.UserMapper;
+import com.smartmobility.user_service.producer.UserEventPublisher;
 import com.smartmobility.user_service.repository.UserRepository;
 import com.smartmobility.user_service.service.UserService;
-import com.smartmobility.user_service.strategy.UserRoleStrategy;
 import com.smartmobility.user_service.exception.UserNotFoundException;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,11 +20,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    private final UserRoleStrategyFactory strategyFactory;
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
+    private final UserEventPublisher eventPublisher;
 
     @Override
     public UserResponseDTO createUser(CreateUserDTO dto) {
@@ -36,11 +37,7 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
 
         log.info("User saved with id: {}", userId);
-
-        UserRoleStrategy strategy = strategyFactory.getStrategy(dto.getRole());
-        strategy.createRoleSpecificEntity(userId);
-
-        log.info("Role-specific entity created for role: {}", dto.getRole());
+        eventPublisher.publishUserCreated(user);
 
         return userMapper.toDTO(user);
     }

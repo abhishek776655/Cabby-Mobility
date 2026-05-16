@@ -38,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
         // 2. Call user-service FIRST (source of truth for user)
         UserCreateRequestDTO userRequest = UserCreateRequestDTO.builder()
                 .email(request.getEmail())
-                .role(request.getRole())
+                .roles(request.getRoles())
                 .build();
 
         ApiResponse<UserResponseDTO> userResponse = userServiceClient.createUser(userRequest);
@@ -61,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(
                 userId,
                 credential.getEmail(),
-                credential.getRole().name()
+                userResponse.getData().getRoles()
         );
 
         return authMapper.toDTO(credential, token, refreshToken.getToken());
@@ -85,10 +85,13 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException("Invalid credentials");
         }
 
+        ApiResponse<UserResponseDTO> userResponse = userServiceClient.findByEmail(request.getEmail());
+
+
         String accessToken = jwtUtil.generateToken(
                 credential.getUserId(),
                 credential.getEmail(),
-                credential.getRole().name()
+                userResponse.getData().getRoles()
         );
 
         RefreshToken refreshToken = refreshTokenService.create(credential.getUserId());
@@ -105,10 +108,13 @@ public class AuthServiceImpl implements AuthService {
         AuthCredential credential = authCredentialRepository.findById(refreshToken.getUserId())
                 .orElseThrow(() -> new InvalidCredentialsException("User not found"));
 
+        ApiResponse<UserResponseDTO> userResponse = userServiceClient.findByUserId(refreshToken.getUserId());
+
+
         String newAccessToken = jwtUtil.generateToken(
                 credential.getUserId(),
                 credential.getEmail(),
-                credential.getRole().name()
+                userResponse.getData().getRoles()
         );
 
         // 🔥 Token rotation (important)

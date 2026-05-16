@@ -13,7 +13,7 @@ public interface RideService {
 
     RideResponseDTO matchRide(UUID rideId);
 
-    void handleDriverAssignedEvent(String eventId, UUID rideId, UUID driverId);
+    void handleDriverAssignedEvent(String eventId, UUID rideId, Long driverId);
 
     RideResponseDTO startRide(UUID rideId);
 

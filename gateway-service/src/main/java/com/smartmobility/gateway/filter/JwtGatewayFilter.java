@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import javax.management.relation.Role;
+import java.util.Set;
+
 @Component
 public class JwtGatewayFilter implements GlobalFilter, Ordered {
     private final JwtUtils jwtUtil;
@@ -43,13 +46,14 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
 
         // 🔥 Extract data from JWT
         Long userId = jwtUtil.extractUserId(token);
-        String role = jwtUtil.extractRole(token);
+        Set<String> roles = jwtUtil.extractRoles(token);
+        String rolesHeader = String.join(",", roles);
 
         // 🔥 Add headers
         ServerHttpRequest mutatedRequest = exchange.getRequest()
                 .mutate()
                 .header("X-User-Id", String.valueOf(userId))
-                .header("X-User-Role", role)
+                .header("X-User-Role", rolesHeader)
                 .build();
 
         // 🔥 Continue with modified request

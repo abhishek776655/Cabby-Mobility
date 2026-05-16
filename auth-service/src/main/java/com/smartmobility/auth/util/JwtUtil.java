@@ -1,5 +1,6 @@
 package com.smartmobility.auth.util;
 
+import com.smartmobility.auth.entity.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -8,7 +9,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Component
 public class JwtUtil {
@@ -28,11 +32,11 @@ public class JwtUtil {
     }
 
     // 🔹 Generate Token
-    public String generateToken(Long userId, String email, String role) {
+    public String generateToken(Long userId, String email, Set<Role> roles) {
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
-                .claim("role", role)
+                .claim("roles", roles)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
@@ -71,5 +75,16 @@ public class JwtUtil {
 
     public String extractRole(String token) {
         return extractClaims(token).get("role", String.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Set<String> extractRoles(String token) {
+        Object roles = extractClaims(token).get("roles");
+        if (roles instanceof Collection<?> collection) {
+            return collection.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+        throw new IllegalArgumentException("Invalid roles claim in token");
     }
 }

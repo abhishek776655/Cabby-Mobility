@@ -3,6 +3,8 @@ package com.smartmobility.auth.dto;
 import com.smartmobility.auth.entity.Role;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -11,5 +13,5 @@ import lombok.*;
 public class UserCreateRequestDTO {
 
     private String email;
-    private Role role;
+    private Set<Role> roles;
 }

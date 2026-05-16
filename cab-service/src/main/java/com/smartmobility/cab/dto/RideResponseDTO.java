@@ -14,10 +14,14 @@ public class RideResponseDTO {
 
     private UUID rideId;
     private UUID riderId;
-    private UUID driverId;
+    private Long driverId;
 
     private String pickupLocation;
     private String dropLocation;
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double dropLatitude;
+    private Double dropLongitude;
 
     private String status;
 

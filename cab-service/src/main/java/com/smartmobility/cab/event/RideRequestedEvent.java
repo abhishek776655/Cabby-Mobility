@@ -17,4 +17,8 @@ public class RideRequestedEvent {
 
     private String pickupLocation;
     private String dropLocation;
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double dropLatitude;
+    private Double dropLongitude;
 }

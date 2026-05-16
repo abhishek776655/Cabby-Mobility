@@ -51,6 +51,10 @@ public class RideServiceImpl implements RideService {
                         .riderId(savedRide.getRiderId())
                         .pickupLocation(savedRide.getPickupLocation())
                         .dropLocation(savedRide.getDropLocation())
+                        .pickupLatitude(savedRide.getPickupLatitude())
+                        .pickupLongitude(savedRide.getPickupLongitude())
+                        .dropLatitude(savedRide.getDropLatitude())
+                        .dropLongitude(savedRide.getDropLongitude())
                         .build()
         );
         return RideMapper.toResponseDTO(savedRide);    }
@@ -136,7 +140,7 @@ public class RideServiceImpl implements RideService {
     }
 
     @Transactional
-    public void handleDriverAssignedEvent(String eventId, UUID rideId, UUID driverId) {
+    public void handleDriverAssignedEvent(String eventId, UUID rideId, Long driverId) {
 
         // 1. Idempotency check
         if (processedEventRepository.existsById(eventId)) {

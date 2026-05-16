@@ -28,9 +28,6 @@ public class AuthCredential {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    private Role role;
-
-    @Enumerated(EnumType.STRING)
     private AccountStatus status;
 
     @Column(name = "created_at")

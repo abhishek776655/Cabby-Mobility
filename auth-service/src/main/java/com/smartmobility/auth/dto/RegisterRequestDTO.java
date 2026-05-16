@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,5 +23,5 @@ public class RegisterRequestDTO {
     private String password;
 
     @NotNull
-    private Role role;
+    private Set<Role> roles;
 }

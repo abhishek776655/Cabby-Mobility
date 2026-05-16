@@ -14,7 +14,7 @@ public class UserMapper {
         return UserEntity.builder()
                 .id(userId)
                 .email(dto.getEmail())
-                .role(dto.getRole())
+                .roles(dto.getRoles())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -23,7 +23,7 @@ public class UserMapper {
         return UserResponseDTO.builder()
                 .userId(entity.getId())
                 .email(entity.getEmail())
-                .role(entity.getRole())
+                .roles(entity.getRoles())
                 .build();
     }
 }

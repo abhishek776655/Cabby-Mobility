@@ -1,34 +1,28 @@
 package com.smartmobility.gateway.utils;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.JwtException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Date;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Component
 public class JwtUtils {
 
-    private static final String SECRET = "my-super-secure-secret-key-for-jwt-123456"; // 32+ chars
-    private static final long EXPIRATION = 1000 * 60 * 60 * 24; // 24 hours
+    private final SecretKey signingKey;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+    public JwtUtils(@Value("${jwt.secret}") String secret) {
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    // 🔹 Generate Token
-    public String generateToken(Long userId, String email, String role) {
-        return Jwts.builder()
-                .subject(String.valueOf(userId))
-                .claim("email", email)
-                .claim("role", role)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION))
-                .signWith(getSigningKey())
-                .compact();
+    private SecretKey getSigningKey() {
+        return signingKey;
     }
 
     // 🔹 Validate Token
@@ -61,8 +55,14 @@ public class JwtUtils {
         return extractClaims(token).get("email", String.class);
     }
 
-    public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
+    @SuppressWarnings("unchecked")
+    public Set<String> extractRoles(String token) {
+        Object roles = extractClaims(token).get("roles");
+        if (roles instanceof Collection<?> collection) {
+            return collection.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+        throw new IllegalArgumentException("Invalid roles claim in token");
     }
 }
-

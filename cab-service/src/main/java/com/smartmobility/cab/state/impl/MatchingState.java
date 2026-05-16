@@ -5,14 +5,12 @@ import com.smartmobility.cab.entity.RideStatus;
 import com.smartmobility.cab.exception.InvalidStateTransitionException;
 import com.smartmobility.cab.state.RideState;
 
-import java.util.UUID;
-
 public class MatchingState implements RideState {
     public void match(RideEntity ride) {
         throw new InvalidStateTransitionException("Already matching");
     }
 
-    public void assignDriver(RideEntity ride, UUID driverId) {
+    public void assignDriver(RideEntity ride, Long driverId) {
         ride.setDriverId(driverId);
         ride.setStatus(RideStatus.DRIVER_ASSIGNED);
     }

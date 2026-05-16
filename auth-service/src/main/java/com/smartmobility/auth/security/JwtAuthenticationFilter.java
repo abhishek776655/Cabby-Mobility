@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -32,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
-        // 1. Check header presence
+        // 1. Check header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -49,11 +50,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 4. Extract user details
         Long userId = jwtUtil.extractUserId(token);
-        String role = jwtUtil.extractRole(token);
+        Set<String> roles = jwtUtil.extractRoles(token);
 
-        List<SimpleGrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority("ROLE_" + role));
-        // 5. Create authentication object
+        // 5. Convert roles → authorities
+        List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
+
+        // 6. Create authentication
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                         userId,
@@ -65,10 +69,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 new WebAuthenticationDetailsSource().buildDetails(request)
         );
 
-        // 6. Set in Security Context
+        // 7. Set context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 7. Continue filter chain
         filterChain.doFilter(request, response);
     }
 }

@@ -13,7 +13,11 @@ public class RideMapper {
                 .riderId(request.getRiderId())
                 .pickupLocation(request.getPickupLocation())
                 .dropLocation(request.getDropLocation())
-                .status(RideStatus.REQUESTED) // always initial state
+                .pickupLatitude(request.getPickupLatitude())
+                .pickupLongitude(request.getPickupLongitude())
+                .dropLatitude(request.getDropLatitude())
+                .dropLongitude(request.getDropLongitude())
+                .status(RideStatus.MATCHING)
                 .build();
     }
 
@@ -24,6 +28,10 @@ public class RideMapper {
                 .driverId(ride.getDriverId())
                 .pickupLocation(ride.getPickupLocation())
                 .dropLocation(ride.getDropLocation())
+                .pickupLatitude(ride.getPickupLatitude())
+                .pickupLongitude(ride.getPickupLongitude())
+                .dropLatitude(ride.getDropLatitude())
+                .dropLongitude(ride.getDropLongitude())
                 .status(ride.getStatus().name())
                 .fare(ride.getFare())
                 .createdAt(ride.getCreatedAt())

@@ -18,7 +18,7 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
   # ----------------------------
-  # Kafka (KRaft mode - no Zookeeper)
+  # Kafka
   # ----------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -42,6 +42,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
       # Internal & External listeners
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL

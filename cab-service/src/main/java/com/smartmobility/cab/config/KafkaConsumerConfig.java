@@ -14,26 +14,6 @@ import org.springframework.util.backoff.FixedBackOff;
 @RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Bean
-    public DefaultErrorHandler errorHandler() {
-
-        // 🔁 Retry 3 times with 2 sec gap
-        FixedBackOff backOff = new FixedBackOff(2000L, 3);
-
-        // 💀 DLQ publisher
-        DeadLetterPublishingRecoverer recoverer =
-                new DeadLetterPublishingRecoverer(kafkaTemplate,
-                        (record, ex) -> new org.apache.kafka.common.TopicPartition(
-                                record.topic() + ".DLQ",
-                                record.partition()
-                        )
-                );
-
-        return new DefaultErrorHandler(recoverer, backOff);
-    }
-
     @Bean
     public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(
             ConsumerFactory<Object, Object> consumerFactory,
@@ -45,6 +25,11 @@ public class KafkaConsumerConfig {
 
         factory.setCommonErrorHandler(errorHandler);
 
+        // ⚡ Parallel consumption (tune based on partitions)
+        factory.setConcurrency(3);
+
+        // keep single record processing
+        factory.setBatchListener(false);
         return factory;
     }
 }

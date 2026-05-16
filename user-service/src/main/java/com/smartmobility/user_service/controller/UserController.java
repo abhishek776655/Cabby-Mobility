@@ -1,6 +1,6 @@
 package com.smartmobility.user_service.controller;
 
-import com.smartmobility.user_service.config.ApiResponseBuilder;
+import com.smartmobility.user_service.dto.ApiResponseBuilder;
 import com.smartmobility.user_service.dto.ApiResponse;
 import com.smartmobility.user_service.dto.CreateUserDTO;
 import com.smartmobility.user_service.dto.UserResponseDTO;

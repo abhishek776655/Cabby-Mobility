@@ -21,13 +21,25 @@ public class RideEntity {
     @Column(nullable = false)
     private UUID riderId;
 
-    private UUID driverId;
+    private Long driverId;
 
     @Column(nullable = false)
     private String pickupLocation;
 
     @Column(nullable = false)
     private String dropLocation;
+
+    @Column(nullable = false)
+    private Double pickupLatitude;
+
+    @Column(nullable = false)
+    private Double pickupLongitude;
+
+    @Column(nullable = false)
+    private Double dropLatitude;
+
+    @Column(nullable = false)
+    private Double dropLongitude;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

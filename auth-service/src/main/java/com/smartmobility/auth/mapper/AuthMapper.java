@@ -12,7 +12,6 @@ public class AuthMapper {
         return AuthCredential.builder()
                 .email(request.getEmail())
                 .passwordHash(hashedPassword)
-                .role(request.getRole())
                 .build();
     }
 
@@ -21,7 +20,6 @@ public class AuthMapper {
                 .accessToken(token)
                 .refreshToken(refreshToken)
                 .userId(credential.getUserId())
-                .role(credential.getRole())
                 .build();
     }
 }
