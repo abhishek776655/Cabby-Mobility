@@ -4,7 +4,7 @@
 
 This document describes the design for a production-grade Matchmaking/Dispatch System (v2) for a ride-hailing platform. The system is responsible for discovering nearby drivers, evaluating eligibility, reserving drivers, coordinating driver acceptance/rejection, and publishing assignment outcomes.
 
-The v2 design replaces the existing v1 matchmaking implementation with:
+The v2 design **enhances** the existing matchmaking service by adding:
 - Redis-based driver reservation (15-second hold)
 - Driver accept/reject flow with timeout handling
 - Sequential retry on reject/timeout
@@ -12,9 +12,53 @@ The v2 design replaces the existing v1 matchmaking implementation with:
 - REST API for driver responses
 - Production-grade observability
 
-## 2. System Context
+**Important:** The existing `MatchmakingServiceImpl` code is preserved and reused. The new `DispatchService` builds upon existing components.
 
-### 2.1 Existing Services
+## 1.1 Existing Code Reuse
+
+The following existing components will be reused in v2:
+
+| Component | Location | Usage in v2 |
+|-----------|----------|-------------|
+| `LocationServiceClient` | `client/LocationServiceClient.java` | Find nearby drivers via REST |
+| `DriverServiceClient` | `client/DriverServiceClient.java` | Check driver availability |
+| `MatchmakingEventProducer` | `kafka/MatchmakingEventProducer.java` | Publish driver-assigned, matchmaking-failed |
+| `DriverScoringStrategy` | `scoring/DriverScoringStrategy.java` | Rank drivers |
+| `RideRequestedConsumer` | `kafka/RideRequestedConsumer.java` | Consume ride-requested events |
+| `AssignmentAttemptRepository` | `repository/AssignmentAttemptRepository.java` | Audit trail for attempts |
+| `ProcessedEventRepository` | `repository/ProcessedEventRepository.java` | Idempotency |
+
+## 2. Integration with Existing Code
+
+### 2.1 Flow Comparison
+
+**Existing v1 Flow (one-shot):**
+1. Consume `RideRequested`
+2. Find nearby drivers (via LocationServiceClient)
+3. Filter available drivers (via DriverServiceClient)
+4. Score and pick best driver
+5. Mark driver unavailable (via DriverServiceClient)
+6. Publish `DriverAssigned` immediately
+
+**New v2 Flow (with reservation):**
+1. Consume `RideRequested`
+2. Find nearby drivers (via existing LocationServiceClient)
+3. Filter available + not-reserved (via existing DriverServiceClient + new ReservationService)
+4. Score and rank drivers
+5. **NEW:** Reserve driver in Redis (15s hold)
+6. **NEW:** Send assignment request to driver
+7. **NEW:** Wait for driver response (REST API or Kafka)
+8. **NEW:** On accept → publish `DriverAssigned`, release reservation
+9. **NEW:** On reject/timeout → release reservation, retry next driver
+
+### 2.2 Code Organization
+
+The v2 implementation adds new code without modifying existing components:
+- Existing `MatchmakingServiceImpl` remains unchanged (can be used as fallback)
+- New `DispatchServiceImpl` uses existing clients internally
+- Decision point: which service to use can be configurable
+
+### 2.3 Existing Services
 
 The platform already contains:
 - **Auth Service** - Authentication and authorization
@@ -23,21 +67,21 @@ The platform already contains:
 - **Location Service** - Driver location tracking (Redis GEO source)
 - **Ride/Cab Service** - Ride lifecycle management, emits RideRequested events
 
-### 2.2 Event Dependencies
+### 2.4 Event Dependencies
 
 | Event | Source | Description |
 |-------|--------|-------------|
 | RideRequested | cab-service | Trigger for dispatch flow |
-| AssignmentAccepted | driver-service (via API) | Driver accepts assignment |
-| AssignmentRejected | driver-service (via API) | Driver rejects assignment |
+| AssignmentAccepted | driver-service (via REST) | Driver accepts assignment |
+| AssignmentRejected | driver-service (via REST) | Driver rejects assignment |
 
-### 2.3 Output Events
+### 2.5 Output Events
 
 | Event | Destination | Description |
 |-------|-------------|-------------|
-| AssignmentRequested | driver-service | Notification to driver |
+| AssignmentRequested | driver notification | Notification to driver |
 | DriverAssigned | cab-service | Successful assignment |
-| NoDriverFound | cab-service | All candidates exhausted |
+| MatchmakingFailed | cab-service | All candidates exhausted | |
 
 ## 3. High-Level Architecture
 
@@ -108,27 +152,27 @@ SEARCHING ──► ASSIGNMENT_SENT ──► RETRYING ──► ASSIGNED
 - `FAILED` - All candidates exhausted
 - `CANCELLED` - Dispatch cancelled by user
 
-### 4.2 CandidateFinder
+### 4.2 CandidateFinder (Reuses Existing LocationServiceClient)
 
-Uses Redis GEOSEARCH for proximity-based driver discovery.
+Uses the existing `LocationServiceClient` to call location-service REST API.
 
 **Algorithm:**
-1. Query Redis GEOADD key for drivers within radius
-2. Return sorted by distance (nearest first)
-3. Support configurable radius and limit
+1. Call `LocationServiceClient.findNearbyDrivers()` with lat, lng, radius, limit
+2. Location service returns driver IDs sorted by distance (nearest first)
+3. Configuration: default radius 5km, default limit 10
 
-**Configuration:**
-- Default search radius: 5km
-- Default candidate limit: 10
+**Note:** The existing `LocationServiceClient` wraps REST calls to `location-service`. The v2 implementation delegates to this client rather than directly using Redis GEO.
 
-### 4.3 DriverFilter
+### 4.3 DriverFilter (Reuses Existing DriverServiceClient)
 
-Filters candidates based on eligibility criteria.
+Filters candidates based on eligibility criteria using existing clients.
 
 **Filters:**
 - Status: ONLINE (from location service)
-- Availability: AVAILABLE = true (from driver service)
-- Not Reserved: No active reservation in Redis
+- Availability: AVAILABLE = true (via existing `DriverServiceClient.getDriver()`)
+- Not Reserved: No active reservation in Redis (via new `ReservationService`)
+
+**Implementation:** Calls existing `DriverServiceClient.getDriver(driverId)` to check availability before attempting reservation.
 
 ### 4.4 DriverRanker
 
@@ -221,18 +265,38 @@ Handles distributed timeout tracking.
 - No separate scheduler needed
 - Scheduled task for cleanup only
 
-### 4.9 EventPublisher
+### 4.9 EventPublisher (Reuses Existing MatchmakingEventProducer)
 
-Kafka event publishing for inter-service communication.
+Kafka event publishing using existing producer component.
 
 **Outbound Events:**
-- AssignmentRequested (to driver notification service)
-- DriverAssigned (to cab-service)
-- NoDriverFound (to cab-service)
+- DriverAssigned: via existing `MatchmakingEventProducer.publishDriverAssigned()`
+- MatchmakingFailed: via existing `MatchmakingEventProducer.publishMatchmakingFailed()`
+- AssignmentRequested: via new Kafka producer (to driver notification topic)
+
+**Note:** The existing `MatchmakingEventProducer` is reused for publishing assignment outcomes.
 
 ## 5. Data Flow
 
-### 5.1 Happy Path Sequence
+### 5.1 Consumer Integration
+
+The existing `RideRequestedConsumer` is updated to delegate to the new `DispatchService`:
+
+```java
+// Existing consumer - updated implementation
+@KafkaListener(topics = "ride-requested", groupId = "matchmaking-service-group")
+public void consume(String message) {
+    RideRequestedEvent event = objectMapper.readValue(message, RideRequestedEvent.class);
+    
+    // Option 1: Use new DispatchService (v2 flow)
+    dispatchService.startDispatch(event);
+    
+    // Option 2: Keep existing MatchmakingService (v1 flow)
+    // matchmakingService.matchRide(event);
+}
+```
+
+### 5.2 Happy Path Sequence
 
 ```
 ┌────────┐    ┌──────────────┐    ┌─────────┐    ┌───────────┐    ┌────────┐
@@ -603,78 +667,72 @@ Response (200 OK):
 
 ## 10. Package Structure
 
+**Legend:** (existing) = already exists, (new) = new in v2
+
 ```
 com.smartmobility.matchmaking/
 ├── config/
-│   ├── KafkaConsumerConfig.java
-│   ├── KafkaProducerConfig.java
-│   ├── RedisConfig.java
-│   ├── WebClientConfig.java
-│   └── MatchmakingProperties.java
+│   ├── KafkaConsumerConfig.java (existing)
+│   ├── KafkaProducerConfig.java (existing)
+│   ├── RedisConfig.java (new)
+│   ├── RestClientConfig.java (existing)
+│   └── MatchmakingProperties.java (new)
 ├── controller/
-│   ├── DriverResponseController.java
-│   └── DispatchController.java
+│   └── DispatchController.java (new)
 ├── domain/
-│   ├── DispatchSession.java
-│   ├── DriverCandidate.java
-│   └── ScoringResult.java
+│   ├── DispatchStatus.java (new)
+│   └── AttemptStatus.java (new)
 ├── dto/
-│   ├── DriverResponseRequest.java
-│   ├── CancelDispatchRequest.java
-│   ├── DispatchStatusResponse.java
-│   ├── NearbyDriversRequest.java
-│   └── DriverResponseDTO.java
+│   ├── ApiResponse.java (existing)
+│   ├── DriverResponseDTO.java (existing)
+│   ├── NearbyDriversRequest.java (existing)
+│   ├── DriverResponseRequest.java (new)
+│   ├── CancelDispatchRequest.java (new)
+│   └── DispatchStatusResponse.java (new)
 ├── entity/
-│   ├── DispatchSessionEntity.java
-│   ├── AssignmentAttemptEntity.java
-│   └── ProcessedEventEntity.java
+│   ├── DispatchSessionEntity.java (new)
+│   ├── AssignmentAttemptEntity.java (existing - new columns)
+│   ├── AssignmentStatus.java (existing)
+│   └── ProcessedEvent.java (existing)
 ├── repository/
-│   ├── DispatchSessionRepository.java
-│   ├── AssignmentAttemptRepository.java
-│   └── ProcessedEventRepository.java
+│   ├── DispatchSessionRepository.java (new)
+│   ├── AssignmentAttemptRepository.java (existing)
+│   └── ProcessedEventRepository.java (existing)
 ├── service/
-│   ├── DispatchSessionManager.java
-│   ├── CandidateFinder.java
-│   ├── DriverFilter.java
-│   ├── DriverRanker.java
-│   ├── ReservationManager.java
-│   ├── AssignmentManager.java
-│   ├── RetryOrchestrator.java
-│   ├── EventPublisher.java
-│   └── MatchmakingService.java
+│   ├── MatchmakingService.java (existing)
+│   ├── DispatchService.java (new interface)
+│   └── impl/
+│       ├── MatchmakingServiceImpl.java (existing)
+│       └── DispatchServiceImpl.java (new)
 ├── strategy/
-│   ├── DriverRankingStrategy.java
-│   ├── MultiFactorRankingStrategy.java
-│   └── RatingRankingStrategy.java
+│   ├── DriverScoringStrategy.java (existing)
+│   └── RatingDriverScoringStrategy.java (existing)
 ├── kafka/
 │   ├── consumer/
-│   │   ├── RideRequestedConsumer.java
-│   │   ├── AssignmentAcceptedConsumer.java
-│   │   └── AssignmentRejectedConsumer.java
+│   │   ├── RideRequestedConsumer.java (existing)
+│   │   ├── AssignmentAcceptedConsumer.java (new)
+│   │   └── AssignmentRejectedConsumer.java (new)
 │   └── producer/
-│       └── DispatchEventProducer.java
+│       ├── MatchmakingEventProducer.java (existing)
+│       └── MatchmakingEventProducerImpl.java (existing)
 ├── redis/
-│   ├── GeoSearchService.java
-│   ├── ReservationService.java
-│   └── DispatchCacheService.java
+│   ├── ReservationService.java (new)
+│   └── DispatchCacheService.java (new)
 ├── scheduler/
-│   └── TimeoutScheduler.java
+│   └── DispatchTimeoutScheduler.java (new)
 ├── event/
-│   ├── RideRequestedEvent.java
-│   ├── AssignmentRequestedEvent.java
-│   ├── AssignmentAcceptedEvent.java
-│   ├── AssignmentRejectedEvent.java
-│   ├── DriverAssignedEvent.java
-│   └── NoDriverFoundEvent.java
+│   ├── RideRequestedEvent.java (existing)
+│   ├── DriverAssignedEvent.java (existing)
+│   ├── MatchmakingFailedEvent.java (existing)
+│   ├── AssignmentRequestedEvent.java (new)
+│   ├── AssignmentAcceptedEvent.java (new)
+│   └── AssignmentRejectedEvent.java (new)
 ├── exception/
-│   ├── DispatchException.java
-│   ├── ReservationException.java
-│   ├── NoDriverAvailableException.java
-│   └── DuplicateEventException.java
-├── util/
-│   ├── IdempotencyUtil.java
-│   └── DistanceUtil.java
-└── MatchmakingServiceApplication.java
+│   ├── DispatchException.java (new)
+│   ├── DispatchNotFoundException.java (new)
+│   ├── ReservationExpiredException.java (new)
+│   └── InvalidDispatchStateException.java (new)
+└── MatchmakingServiceApplication.java (existing - add @EnableScheduling)
 ```
 
 ## 11. Observability
