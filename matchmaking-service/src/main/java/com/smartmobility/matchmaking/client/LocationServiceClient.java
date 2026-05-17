@@ -30,6 +30,7 @@ public class LocationServiceClient {
 
         ApiResponse<List<Long>> response = restClient.post()
                 .uri("/location/nearby")
+                .header("X-Internal-Service", "matchmaking-service")
                 .body(request)
                 .retrieve()
                 .body(new ParameterizedTypeReference<ApiResponse<List<Long>>>() {});
