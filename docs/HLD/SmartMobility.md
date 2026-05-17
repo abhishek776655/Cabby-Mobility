@@ -89,9 +89,24 @@ REQUESTED → MATCHED → ACCEPTED → STARTED → COMPLETED → CANCELLED
 
 # 🏗️ HIGH LEVEL DESIGN (HLD)
 
+## Service Ports
+
+| Service | Port | Technology |
+|---------|------|------------|
+| Gateway | 8080 | Spring Cloud Gateway |
+| Auth Service | 8082 | Spring Boot |
+| User Service | 8081 | Spring Boot |
+| Cab Service | 8083 | Spring Boot |
+| Driver Service | 8084 | Spring Boot |
+| Location Service | 8086 | Spring Boot + Redis |
+| Matchmaking Service | 8087 | Spring Boot + Kafka |
+| PostgreSQL | 5432 | - |
+| Redis | 6379 | - |
+| Kafka | 9092 | - |
+
 ## Architecture Overview
 
-Client → API Gateway → Microservices → Kafka → DB/Cache
+Client → API Gateway → Microservices → Kafka → DB/Cache/Redis
 
 ---
 
@@ -106,19 +121,22 @@ Gateway --> Auth
 Gateway --> User
 Gateway --> Cab
 Gateway --> Driver
+Gateway --> Location
+Gateway --> Matchmaking
 
-Cab --> Matchmaking
+Cab -->|ride-requested| Kafka
+Kafka --> Matchmaking
 Matchmaking --> Location
+Matchmaking --> Driver
 Location --> Redis
+Driver --> Postgres
 
-Matchmaking --> Kafka
-Kafka --> Notification
-
-Notification --> Driver
-Notification --> Rider
+Kafka --> Driver
+Kafka --> Cab
 
 Cab --> Postgres
 Driver --> Postgres
+Matchmaking --> Postgres
 ```
 
 ## Component Diagrams
@@ -222,12 +240,26 @@ Notification --> Rider
 ### Responsibilities
 
 * Request routing
-* Authentication validation
+* JWT Authentication validation
+* Role-based authorization (ADMIN, DRIVER, RIDER)
 * Rate limiting (Redis)
+* Circuit breaker (Resilience4j)
 
 ### Communication
 
 * Sync → All services
+
+### Routes
+
+| Path | Service | Port | Roles Allowed |
+|------|---------|------|---------------|
+| /auth/** | auth-service | 8082 | ADMIN |
+| /users/** | user-service | 8081 | ADMIN, RIDER |
+| /rides/** | cab-service | 8083 | ADMIN, RIDER |
+| /dispatch/** | cab-service | 8083 | ADMIN, RIDER, DRIVER | ← Driver response moved here |
+| /driver/** | driver-service | 8084 | ADMIN, DRIVER |
+| /location/** | location-service | 8086 | ADMIN, DRIVER |
+| /internal/** | matchmaking-service | 8087 | INTERNAL ONLY |
 
 ---
 
@@ -259,18 +291,19 @@ Notification --> Rider
 
 ---
 
-## 4. Ride Service (CORE)
+## 4. Cab Service (CORE - Orchestrator)
 
 ### Responsibilities
 
-* Ride creation
-* Ride state machine
+* Ride creation & state machine
 * Persist rides
+* **Dispatch APIs** - Handle driver response, cancel, status queries
+* Publish driver response events to Kafka
 
 ### Communication
 
-* Emits → ride.requested
-* Consumes → ride.matched, ride.accepted
+* Emits → ride-requested, assignment-accepted, assignment-rejected
+* Consumes → driver-assigned, matchmaking-failed
 
 ---
 
@@ -289,31 +322,37 @@ Notification --> Rider
 
 ---
 
-## 6. Matchmaking Service (CORE INTELLIGENCE)
+## 6. Matchmaking Service (CORE INTELLIGENCE - INTERNAL)
 
 ### Responsibilities
 
-* Find nearby drivers
+* Find nearby drivers via Location Service
 * Rank drivers
-* Assign driver
+* Assign driver (via Driver Service)
+* Handle retry on driver rejection
 
 ### Communication
 
-* Consumes → ride.requested
-* Calls → Driver Service
-* Emits → ride.matched
+* Consumes → ride-requested, assignment-rejected
+* Calls → Location Service, Driver Service
+* Emits → driver-assigned, matchmaking-failed
+
+> ⚠️ **No user-facing APIs** - triggered via Kafka events only
 
 ---
 
-## 7. Notification Service (Future)
+## 7. Location Service
 
 ### Responsibilities
 
-* Push notifications
+* Real-time driver location (Redis GEO)
+* Driver availability tracking
+* Nearby driver queries for matchmaking
 
 ### Communication
 
-* Consumes ride events
+* Sync → Matchmaking Service
+* Redis for spatial data
 
 ---
 
@@ -345,11 +384,30 @@ Notification --> Rider
 
 ### Topics
 
+| Topic | Producer | Consumer | Purpose |
+|-------|----------|----------|---------|
+| ride-requested | Cab Service | Matchmaking | Trigger driver matching |
+| driver-assigned | Matchmaking | Cab Service | Driver successfully assigned |
+| matchmaking-failed | Matchmaking | Cab Service | No driver available |
+| assignment-accepted | Cab Service | Matchmaking | Driver accepted (from /dispatch/driver-response) |
+| assignment-rejected | Cab Service | Matchmaking | Driver rejected → retry |
+
+Legacy/Other:
 * user.created
-* ride.requested
-* ride.matched
-* ride.accepted
-* ride.completed
+* user.create.requested
+* driver.status.updated
+
+### Key Flows
+
+**Ride Booking Flow:**
+1. Cab Service → ride-requested → Kafka
+2. Matchmaking consumes ride-requested
+3. Matchmaking → Location Service (nearby drivers)
+4. Matchmaking → Driver Service (driver details)
+5. Matchmaking selects best driver
+6. Matchmaking → Driver Service (mark unavailable)
+7. Matchmaking → driver-assigned → Kafka
+8. Cab Service consumes driver-assigned
 
 ### Flow
 
@@ -398,6 +456,20 @@ Notification --> Rider
 ## 9. CQRS (Future)
 
 * Separate read/write paths
+
+## 10. Role-Based Access Control (Gateway)
+
+* JWT contains user roles
+* Gateway validates role vs requested path
+* Services trust X-User-Id headers from gateway
+
+### Roles & Permissions
+
+| Role | Access Paths |
+|------|---------------|
+| ADMIN | All paths |
+| DRIVER | /driver/**, /location/**, /matchmaking/** |
+| RIDER | /users/**, /cab/**, /matchmaking/** |
 
 ---
 

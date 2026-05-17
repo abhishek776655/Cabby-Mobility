@@ -23,7 +23,11 @@ public class DriverAssignedState implements RideState {
         throw new InvalidStateTransitionException("Ride not started");
     }
 
-    public void cancel(RideEntity ride) {
-        ride.setStatus(RideStatus.CANCELLED);
+public void cancel(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot cancel - driver already assigned");
+    }
+
+    public void failNoDriver(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot fail - driver already assigned");
     }
 }

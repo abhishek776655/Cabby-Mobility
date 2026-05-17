@@ -1,15 +1,12 @@
-package com.smartmobility.cab.consumer;
+package com.smartmobility.cab.kafka;
 
 
-import com.smartmobility.cab.entity.ProcessedEvent;
 import com.smartmobility.cab.event.DriverAssignedEvent;
 import com.smartmobility.cab.repository.ProcessedEventRepository;
 import com.smartmobility.cab.service.RideService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor

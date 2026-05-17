@@ -1,5 +1,6 @@
-package com.smartmobility.cab.producer;
+package com.smartmobility.cab.kafka;
 
+import com.smartmobility.cab.event.DriverResponseEvent;
 import com.smartmobility.cab.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -11,9 +12,16 @@ public class RideEventProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    private static final String TOPIC = "ride-requested";
+    private static final String RIDE_REQUESTED_TOPIC = "ride-requested";
+    private static final String ASSIGNMENT_ACCEPTED_TOPIC = "assignment-accepted";
+    private static final String ASSIGNMENT_REJECTED_TOPIC = "assignment-rejected";
 
     public void publishRideRequested(RideRequestedEvent event) {
-        kafkaTemplate.send(TOPIC, event.getRideId().toString(), event);
+        kafkaTemplate.send(RIDE_REQUESTED_TOPIC, event.getRideId().toString(), event);
+    }
+
+    public void publishDriverResponse(DriverResponseEvent event) {
+        String topic = event.isAccepted() ? ASSIGNMENT_ACCEPTED_TOPIC : ASSIGNMENT_REJECTED_TOPIC;
+        kafkaTemplate.send(topic, event.getRideId().toString(), event);
     }
 }

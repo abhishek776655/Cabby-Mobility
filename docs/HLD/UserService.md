@@ -1,5 +1,10 @@
 # 👤 USER SERVICE — HLD + LLD (Mobility System)
 
+## Service Configuration
+
+* **Port:** 8081
+* **Database:** PostgreSQL
+
 ---
 
 # 🏗️ High Level Design (HLD)
@@ -32,7 +37,12 @@ User Service manages the **user identity lifecycle**:
 * ❌ No authentication (handled by auth-service)
 * ❌ No driver domain logic (handled by driver-service)
 * ❌ No business workflows (handled by cab/matchmaking)
-* ❌ No authorization enforcement
+* ❌ No authorization enforcement (handled by gateway)
+
+### Authorization
+
+* Services trust X-User-Id and X-User-Role headers from gateway
+* Resource-level checks implemented at service level (e.g., user owns resource)
 
 ---
 

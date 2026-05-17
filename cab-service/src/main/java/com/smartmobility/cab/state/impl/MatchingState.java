@@ -26,4 +26,8 @@ public class MatchingState implements RideState {
     public void cancel(RideEntity ride) {
         ride.setStatus(RideStatus.CANCELLED);
     }
+
+    public void failNoDriver(RideEntity ride) {
+        ride.setStatus(RideStatus.NO_DRIVER_AVAILABLE);
+    }
 }

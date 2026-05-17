@@ -1,5 +1,11 @@
 # 🚖 DRIVER SERVICE — HLD + LLD (Smart Mobility)
 
+## Service Configuration
+
+* **Port:** 8084
+* **Database:** PostgreSQL
+* **Cache:** Redis (availability & location)
+
 ## 🏗️ High Level Design (HLD)
 
 ### 🎯 Purpose

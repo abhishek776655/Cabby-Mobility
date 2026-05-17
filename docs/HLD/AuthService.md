@@ -1,5 +1,11 @@
 # 🔐 AUTH SERVICE — HLD + LLD (Smart Mobility)
 
+## Service Configuration
+
+* **Port:** 8082
+* **Database:** PostgreSQL
+* **Security:** Spring Security + JWT
+
 ## 🏗️ High Level Design (HLD)
 
 ### 🎯 Purpose
@@ -30,6 +36,16 @@ Auth Service manages the **authentication and identity lifecycle**:
 * ❌ No user profile management (handled by user-service)
 * ❌ No business authorization logic
 * ❌ No API routing (handled by gateway)
+
+### Security Configuration
+
+* Spring Security with JWT Authentication Filter
+* Stateless session management
+* Role-based endpoint protection:
+  - `/auth/**` - Public (permitAll)
+  - `/admin/**` - ADMIN role only
+  - `/driver/**` - DRIVER role only
+  - Other endpoints - Authenticated users
 
 ---
 

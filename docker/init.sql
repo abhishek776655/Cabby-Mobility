@@ -2,3 +2,4 @@ CREATE DATABASE user_db;
 CREATE DATABASE auth_db;
 CREATE DATABASE cab_db;
 CREATE DATABASE driver_db;
+CREATE DATABASE matchmaking_db;

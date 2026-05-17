@@ -22,11 +22,13 @@ Cab Service manages the **ride lifecycle**:
 * Handle ride lifecycle transitions
 * Publish ride events
 * Consume driver assignment events
+* **Dispatch orchestration** - Handle driver response APIs
+* **Publish driver-response events** - Forward to Matchmaking via Kafka
 
 ### Boundaries
 
-* ❌ No driver selection logic
-* ❌ No location tracking
+* ❌ No driver selection logic (Matchmaking)
+* ❌ No location tracking (Location Service)
 * ❌ No notification handling
 
 ---
@@ -42,6 +44,8 @@ Cab Service manages the **ride lifecycle**:
 **Produces:**
 
 * ride-requested
+* assignment-accepted (driver response)
+* assignment-rejected (driver response)
 * ride-started (future)
 * ride-completed (future)
 * ride-cancelled (future)
@@ -49,16 +53,27 @@ Cab Service manages the **ride lifecycle**:
 **Consumes:**
 
 * driver-assigned
+* matchmaking-failed
 
 ---
 
 ## 🧠 Ride State Model
 
 ```
-REQUESTED → MATCHING → DRIVER_ASSIGNED → ONGOING → COMPLETED
-                           ↓
-                        CANCELLED
+REQUESTED → MATCHING → ACCEPTED → STARTED → COMPLETED
+                            ↓
+                         CANCELLED
 ```
+
+### State Transitions
+
+| From State | To State | Trigger |
+|------------|----------|---------|
+| REQUESTED | MATCHING | ride.requested published |
+| MATCHING | ACCEPTED | driver-assigned consumed |
+| ACCEPTED | STARTED | driver starts ride |
+| STARTED | COMPLETED | driver completes ride |
+| MATCHING/ACCEPTED | CANCELLED | rider cancels |
 
 ---
 
@@ -126,9 +141,13 @@ cab-service/
 CREATE TABLE rides (
     id UUID PRIMARY KEY,
     rider_id UUID NOT NULL,
-    driver_id UUID,
+    driver_id BIGINT,
     pickup_location VARCHAR(255),
+    pickup_latitude DOUBLE,
+    pickup_longitude DOUBLE,
     drop_location VARCHAR(255),
+    drop_latitude DOUBLE,
+    drop_longitude DOUBLE,
     status VARCHAR(50),
     created_at TIMESTAMP,
     updated_at TIMESTAMP
@@ -180,10 +199,26 @@ interface RideState {
 
 ## 🌐 APIs
 
-### Create Ride
+### Create Ride (Rider)
 
 ```
-POST /rides
+POST /api/rides
+```
+
+---
+
+### Get Ride (Rider)
+
+```
+GET /api/rides/{id}
+```
+
+---
+
+### Cancel Ride (Rider)
+
+```
+POST /api/rides/{id}/cancel
 ```
 
 ---
@@ -192,14 +227,6 @@ POST /rides
 
 ```
 POST /rides/{id}/match
-```
-
----
-
-### Assign Driver (internal)
-
-```
-POST /rides/{id}/assign?driverId=
 ```
 
 ---
@@ -220,10 +247,28 @@ POST /rides/{id}/complete
 
 ---
 
-### Cancel Ride
+### Driver Response (Driver) 🚨 MOVED FROM MATCHMAKING
 
 ```
-POST /rides/{id}/cancel
+POST /dispatch/driver-response
+Body: { "dispatchId": "uuid", "driverId": 123, "response": "ACCEPT|REJECT" }
+```
+
+---
+
+### Cancel Dispatch (Rider)
+
+```
+POST /dispatch/cancel
+Body: { "rideId": "uuid", "reason": "string" }
+```
+
+---
+
+### Get Dispatch Status
+
+```
+GET /dispatch/{rideId}
 ```
 
 ---
@@ -268,27 +313,43 @@ save ride;
 
 ## 📡 Kafka Events
 
-### ride-requested
+### ride-requested (Produced)
 
 ```json
 {
-  "eventId": "...",
-  "rideId": "...",
-  "riderId": "...",
-  "pickupLocation": "...",
-  "dropLocation": "..."
+  "eventId": "uuid",
+  "rideId": "uuid",
+  "riderId": "uuid",
+  "pickupLocation": "string",
+  "pickupLatitude": 28.7041,
+  "pickupLongitude": 77.1025,
+  "dropLocation": "string",
+  "dropLatitude": 28.5355,
+  "dropLongitude": 77.3910
 }
 ```
 
 ---
 
-### driver-assigned
+### driver-assigned (Consumed)
 
 ```json
 {
-  "eventId": "...",
-  "rideId": "...",
-  "driverId": "..."
+  "eventId": "uuid",
+  "rideId": "uuid",
+  "driverId": 12345,
+  "assignedAt": "2024-01-01T12:00:00"
+}
+```
+
+### matchmaking-failed (Consumed)
+
+```json
+{
+  "eventId": "uuid",
+  "rideId": "uuid",
+  "reason": "NO_DRIVER_AVAILABLE",
+  "failedAt": "2024-01-01T12:00:00"
 }
 ```
 
@@ -299,7 +360,21 @@ save ride;
 ```
 Cab Service → ride-requested → Matchmaking
 Matchmaking → driver-assigned → Cab Service
+Matchmaking → matchmaking-failed → Cab Service
+
+Driver → /dispatch/driver-response → Cab Service → assignment-accepted → Matchmaking
+Driver → /dispatch/driver-response → Cab Service → assignment-rejected → Matchmaking
 ```
+
+### Complete Event Flow
+
+| Event | Producer | Consumer | Purpose |
+|-------|----------|----------|---------|
+| ride-requested | Cab Service | Matchmaking | Trigger matching |
+| driver-assigned | Matchmaking | Cab Service | Update ride status |
+| matchmaking-failed | Matchmaking | Cab Service | Handle no driver |
+| assignment-accepted | Cab Service | Matchmaking | Driver accepted |
+| assignment-rejected | Cab Service | Matchmaking | Retry next driver |
 
 ---
 

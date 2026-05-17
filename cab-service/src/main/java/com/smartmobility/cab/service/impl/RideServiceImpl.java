@@ -7,20 +7,21 @@ import com.smartmobility.cab.entity.RideEntity;
 import com.smartmobility.cab.event.RideRequestedEvent;
 import com.smartmobility.cab.exception.RideNotFoundException;
 import com.smartmobility.cab.mapper.RideMapper;
-import com.smartmobility.cab.producer.RideEventProducer;
+import com.smartmobility.cab.kafka.RideEventProducer;
 import com.smartmobility.cab.repository.ProcessedEventRepository;
 import com.smartmobility.cab.repository.RideRepository;
 import com.smartmobility.cab.service.RideService;
 import com.smartmobility.cab.state.RideState;
 import com.smartmobility.cab.state.RideStateFactory;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RideServiceImpl implements RideService {
@@ -162,6 +163,38 @@ public class RideServiceImpl implements RideService {
                 ProcessedEvent.builder()
                         .eventId(eventId)
                         .eventType("DRIVER_ASSIGNED")
+                        .processedAt(LocalDateTime.now())
+                        .build()
+        );
+    }
+
+    @Transactional
+    public void handleMatchmakingFailedEvent(String eventId, UUID rideId, String reason) {
+        log.info("Handling matchmaking failed: rideId={}, reason={}", rideId, reason);
+
+        // 1. Idempotency check
+        if (processedEventRepository.existsById(eventId)) {
+            return;
+        }
+
+        // 2. Fetch ride
+        RideEntity ride = rideRepository.findById(rideId)
+                .orElseThrow(() -> new RideNotFoundException("Ride not found"));
+
+        // 3. Apply state transition to NO_DRIVER_AVAILABLE
+        RideState state = rideStateFactory.getState(ride.getStatus());
+        state.failNoDriver(ride);
+
+        // 4. Save updated ride
+        rideRepository.save(ride);
+
+        log.warn("Ride {} marked as NO_DRIVER_AVAILABLE: {}", rideId, reason);
+
+        // 5. Save processed event
+        processedEventRepository.save(
+                ProcessedEvent.builder()
+                        .eventId(eventId)
+                        .eventType("MATCHMAKING_FAILED")
                         .processedAt(LocalDateTime.now())
                         .build()
         );

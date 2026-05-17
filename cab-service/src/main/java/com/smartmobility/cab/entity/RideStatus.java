@@ -6,5 +6,6 @@ public enum RideStatus {
     DRIVER_ASSIGNED,
     ONGOING,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    NO_DRIVER_AVAILABLE  // Added for matchmaking failure
 }

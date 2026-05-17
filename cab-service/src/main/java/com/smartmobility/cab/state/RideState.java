@@ -13,4 +13,6 @@ public interface RideState {
     void complete(RideEntity ride);
 
     void cancel(RideEntity ride);
+
+    void failNoDriver(RideEntity ride);
 }

@@ -26,4 +26,8 @@ public class OngoingState implements RideState {
     public void cancel(RideEntity ride) {
         throw new InvalidStateTransitionException("Cannot cancel ongoing ride");
     }
+
+    public void failNoDriver(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot fail - ride already ongoing");
+    }
 }

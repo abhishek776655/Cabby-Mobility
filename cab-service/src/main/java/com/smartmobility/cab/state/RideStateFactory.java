@@ -19,6 +19,7 @@ public class RideStateFactory {
         stateMap.put(RideStatus.ONGOING, new OngoingState());
         stateMap.put(RideStatus.COMPLETED, new CompletedState());
         stateMap.put(RideStatus.CANCELLED, new CancelledState());
+        stateMap.put(RideStatus.NO_DRIVER_AVAILABLE, new NoDriverAvailableState());
     }
 
     public RideState getState(RideStatus status) {

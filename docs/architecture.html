@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Mobility Platform - Architecture</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-card-hover: #252542;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-error: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --glow-primary: rgba(99, 102, 241, 0.4);
+            --glow-success: rgba(16, 185, 129, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
+
+        header { text-align: center; margin-bottom: 40px; }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary), var(--accent-success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .subtitle { color: var(--text-secondary); font-size: 1rem; max-width: 600px; margin: 0 auto; }
+
+        /* Tabs */
+        .tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 40px; }
+
+        .tab {
+            padding: 14px 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 0 20px var(--glow-primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Architecture Grid */
+        .architecture {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .layer-label {
+            grid-column: 1 / -1;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 10px;
+        }
+
+        .service-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 30px var(--glow-primary);
+        }
+
+        .service-card:hover::before { opacity: 1; }
+
+        .service-card.future { border-color: var(--accent-warning); opacity: 0.7; }
+        .service-card.future:hover { opacity: 1; }
+
+        .service-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .service-card.active .service-icon {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            box-shadow: 0 0 20px var(--glow-primary);
+        }
+
+        .service-card.future .service-icon {
+            background: linear-gradient(135deg, var(--accent-warning), #d97706);
+        }
+
+        .service-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+        .service-port { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+
+        .service-badge {
+            position: absolute;
+            top: 12px; right: 12px;
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .service-badge.active { background: rgba(16, 185, 129, 0.2); color: var(--accent-success); }
+        .service-badge.future { background: rgba(245, 158, 11, 0.2); color: var(--accent-warning); }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            width: 280px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 100;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .service-card:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) scale(1);
+        }
+
+        .tooltip-title { font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+        .tooltip-desc { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+
+        .tooltip-tech { font-size: 0.7rem; color: var(--text-muted); }
+        .tooltip-tech span {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 4px;
+            margin-top: 4px;
+        }
+
+        /* Legend */
+        .legend { display: flex; justify-content: center; gap: 30px; margin-bottom: 40px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--text-secondary); }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .legend-dot.active { background: var(--accent-primary); box-shadow: 0 0 10px var(--glow-primary); }
+        .legend-dot.future { background: var(--accent-warning); }
+        .legend-dot.infra { background: var(--text-muted); }
+
+        /* Flow Styles */
+        .flow-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; margin-bottom: 30px; }
+
+        .flow-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 24px; text-align: center; }
+        .flow-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 30px; text-align: center; }
+
+        .flow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+
+        .flow-steps::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 30px;
+            bottom: 30px;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary), var(--accent-success));
+            opacity: 0.3;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .flow-step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .flow-step-content { flex: 1; }
+
+        .flow-step-title { font-weight: 600; margin-bottom: 4px; }
+        .flow-step-desc { font-size: 0.85rem; color: var(--text-secondary); }
+
+        .flow-step-service {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+
+        .flow-step-tech {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: monospace;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            padding: 8px 0;
+        }
+
+        /* Kafka Events */
+        .kafka-event {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: var(--accent-secondary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        /* Flow Diagram */
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 20px;
+            background: var(--bg-card-hover);
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .flow-node {
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .flow-node.kafka { border-color: var(--accent-secondary); color: var(--accent-secondary); }
+        .flow-node.rest { border-color: var(--accent-primary); color: var(--accent-primary); }
+        .flow-node.redis { border-color: var(--accent-success); color: var(--accent-success); }
+
+        .flow-arrow-right {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        /* Matchmaking Internal Flow */
+        .matchmaking-flow {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .match-step {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .match-step-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .match-step-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .match-step-icon.kafka { background: rgba(139, 92, 246, 0.3); }
+        .match-step-icon.redis { background: rgba(16, 185, 129, 0.3); }
+        .match-step-icon.rest { background: rgba(99, 102, 241, 0.3); }
+
+        .match-step-title { font-weight: 600; font-size: 0.9rem; }
+        .match-step-desc { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Retry Flow */
+        .retry-flow {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .retry-title {
+            font-weight: 600;
+            color: var(--accent-warning);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label { color: var(--text-secondary); font-size: 0.85rem; margin-top: 6px; }
+
+        /* Infrastructure */
+        .infrastructure {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .infra-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 24px;
+            text-align: center;
+        }
+
+        .infra-icon { font-size: 1.5rem; margin-bottom: 6px; }
+        .infra-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+        .infra-detail { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+
+        .topics-grid { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 30px; }
+        .topic-badge {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: var(--accent-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
+
+        /* Visual Flow Diagram (HLD Style) */
+        .visual-flow-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+
+        .visual-flow-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .visual-flow-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .flow-diagram-hld {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0;
+            min-width: 900px;
+            padding: 20px 0;
+        }
+
+        .flow-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+
+        .flow-box-inner {
+            background: var(--bg-card-hover);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            min-width: 110px;
+            transition: all 0.3s;
+        }
+
+        .flow-box-inner:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .flow-box-icon {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .flow-box-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .flow-box-detail {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-family: monospace;
+        }
+
+        .flow-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            position: relative;
+        }
+
+        .flow-arrow-line {
+            height: 2px;
+            width: 40px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            position: relative;
+        }
+
+        .flow-arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left-color: var(--accent-secondary);
+        }
+
+        .flow-arrow-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            background: var(--bg-dark);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 6px;
+            white-space: nowrap;
+        }
+
+        .flow-arrow-label.kafka {
+            color: var(--accent-secondary);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .flow-arrow-label.rest {
+            color: var(--accent-primary);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .flow-arrow-label.redis {
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* Two row flow diagram */
+        .flow-diagram-hld-multi {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+
+        .flow-row-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Vertical connectors */
+        .flow-connector-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .flow-arrow-down {
+            width: 2px;
+            height: 25px;
+            background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary));
+            position: relative;
+        }
+
+        .flow-arrow-down::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: -4px;
+            border: 5px solid transparent;
+            border-top-color: var(--accent-secondary);
+        }
+
+        /* Database indicator */
+        .flow-db {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--accent-success);
+            margin-top: 8px;
+        }
+
+        /* Event boxes */
+        .flow-event {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: var(--accent-secondary);
+            margin-top: 8px;
+        }
+
+        /* Matchmaking detailed diagram */
+        .match-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .match-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .match-box {
+            background: var(--bg-card-hover);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 24px;
+            text-align: center;
+            min-width: 160px;
+        }
+
+        .match-box.kafka { border-color: var(--accent-secondary); }
+        .match-box.redis { border-color: var(--accent-success); }
+        .match-box.rest { border-color: var(--accent-primary); }
+
+        .match-box-icon {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+
+        .match-box-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .match-box-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .match-arrow {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        .match-arrow-down {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 1200px) {
+            .architecture { grid-template-columns: repeat(3, 1fr); }
+            .matchmaking-flow { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .architecture { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.8rem; }
+            .tabs { flex-direction: column; align-items: center; }
+            .flow-step { flex-direction: column; text-align: center; }
+            .flow-steps::before { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Mobility Platform</h1>
+            <p class="subtitle">Event-driven microservices architecture for real-time ride-hailing</p>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('architecture')">Architecture</div>
+            <div class="tab" onclick="showTab('ride-flow')">Ride Booking Flow</div>
+            <div class="tab" onclick="showTab('matchmaking-flow')">Matchmaking Flow</div>
+            <div class="tab" onclick="showTab('visual-flow')">Visual Flow (HLD)</div>
+            <div class="tab" onclick="showTab('kafka-flow')">Kafka Events Flow</div>
+        </div>
+
+        <!-- Tab 1: Architecture Overview -->
+        <div id="architecture" class="tab-content active">
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot active"></div><span>Active</span></div>
+                <div class="legend-item"><div class="legend-dot future"></div><span>Future</span></div>
+                <div class="legend-item"><span style="color: var(--accent-primary);">→</span><span>REST</span></div>
+                <div class="legend-item"><span style="color: var(--accent-secondary);">⇄</span><span>Kafka</span></div>
+                <div class="legend-item"><span style="color: var(--accent-success);">◉</span><span>DB</span></div>
+            </div>
+
+            <div class="architecture">
+                <div class="layer-label">Client Layer</div>
+                <div class="service-card active" style="grid-column: span 2;">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">📱</div>
+                    <div class="service-name">Mobile/Web App</div>
+                    <div class="service-port">Rider & Driver</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Client Applications</div>
+                        <div class="tooltip-desc">React Native mobile apps for riders and drivers. Real-time location tracking, ride booking, and WebSocket notifications.</div>
+                        <div class="tooltip-tech"><span>React Native</span><span>WebSocket</span></div>
+                    </div>
+                </div>
+
+                <div class="layer-label">API Gateway</div>
+                <div class="service-card active" style="grid-column: span 2;">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">🚪</div>
+                    <div class="service-name">API Gateway</div>
+                    <div class="service-port">Port 8080</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">API Gateway</div>
+                        <div class="tooltip-desc">Central entry point. JWT auth, rate limiting, routes to microservices.</div>
+                        <div class="tooltip-tech"><span>Spring Cloud</span><span>JWT</span><span>Resilience4j</span></div>
+                    </div>
+                </div>
+
+                <div class="layer-label">Core Services</div>
+                
+                <div class="service-card active">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">🔐</div>
+                    <div class="service-name">Auth Service</div>
+                    <div class="service-port">8082</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Authentication Service</div>
+                        <div class="tooltip-desc">User registration, login, JWT token issuance.</div>
+                        <div class="tooltip-tech"><span>Spring Boot</span><span>PostgreSQL</span></div>
+                    </div>
+                </div>
+
+                <div class="service-card active">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">👤</div>
+                    <div class="service-name">User Service</div>
+                    <div class="service-port">8081</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">User Management Service</div>
+                        <div class="tooltip-desc">Rider profiles, preferences, ride history.</div>
+                        <div class="tooltip-tech"><span>Spring Boot</span><span>PostgreSQL</span></div>
+                    </div>
+                </div>
+
+                <div class="service-card active">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">🚕</div>
+                    <div class="service-name">Cab Service</div>
+                    <div class="service-port">8083</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Ride/Cab Service (Orchestrator)</div>
+                        <div class="tooltip-desc">Ride lifecycle, state machine. Source of truth. Handles dispatch APIs: /driver-response, /cancel, /dispatch/{id}</div>
+                        <div class="tooltip-tech"><span>POST /rides</span><span>POST /dispatch/*</span><span>Kafka</span><span>PostgreSQL</span></div>
+                    </div>
+                </div>
+
+                <div class="service-card active">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">🚌</div>
+                    <div class="service-name">Driver Service</div>
+                    <div class="service-port">8084</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Driver Management Service</div>
+                        <div class="tooltip-desc">Driver onboarding, profiles, availability, assignment.</div>
+                        <div class="tooltip-tech"><span>Spring Boot</span><span>PostgreSQL</span></div>
+                    </div>
+                </div>
+
+                <div class="service-card active">
+                    <div class="service-badge active">Active</div>
+                    <div class="service-icon">📍</div>
+                    <div class="service-name">Location Service</div>
+                    <div class="service-port">8086</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Location Service (v2)</div>
+                        <div class="tooltip-desc">Real-time driver tracking via Redis GEO. Separate available drivers index for N+1 fix.</div>
+                        <div class="tooltip-tech"><span>Spring Boot</span><span>Redis GEO</span></div>
+                    </div>
+                </div>
+
+                <div class="service-card active">
+                    <div class="service-badge active">Internal</div>
+                    <div class="service-icon">🎯</div>
+                    <div class="service-name">Matchmaking Service</div>
+                    <div class="service-port">8087</div>
+                    <div class="tooltip">
+                        <div class="tooltip-title">Matchmaking Service (v2) - INTERNAL</div>
+                        <div class="tooltip-desc">Driver discovery & assignment. Redis for 15s driver reservation (SETNX). No user-facing APIs - triggered via Kafka only.</div>
+                        <div class="tooltip-tech"><span>Kafka: ride-requested</span><span>Kafka: driver-assigned</span><span>Redis SETNX</span></div>
+                    </div>
+                </div>
+
+                <div class="layer-label">Future Services</div>
+                <div class="service-card future">
+                    <div class="service-badge future">Future</div>
+                    <div class="service-icon">💰</div>
+                    <div class="service-name">Pricing Service</div>
+                    <div class="service-port">TBD</div>
+                </div>
+                <div class="service-card future">
+                    <div class="service-badge future">Future</div>
+                    <div class="service-icon">💳</div>
+                    <div class="service-name">Payment Service</div>
+                    <div class="service-port">TBD</div>
+                </div>
+                <div class="service-card future">
+                    <div class="service-badge future">Future</div>
+                    <div class="service-icon">🔔</div>
+                    <div class="service-name">Notification Service</div>
+                    <div class="service-port">TBD</div>
+                </div>
+                <div class="service-card future">
+                    <div class="service-badge future">Future</div>
+                    <div class="service-icon">📊</div>
+                    <div class="service-name">Analytics Service</div>
+                    <div class="service-port">TBD</div>
+                </div>
+            </div>
+
+            <h3 style="text-align: center; margin-bottom: 20px; color: var(--text-secondary);">Infrastructure</h3>
+            <div class="infrastructure">
+                <div class="infra-card"><div class="infra-icon">🐘</div><div class="infra-name">PostgreSQL</div><div class="infra-detail">5432</div></div>
+                <div class="infra-card"><div class="infra-icon">🔴</div><div class="infra-name">Redis</div><div class="infra-detail">6379</div></div>
+                <div class="infra-card"><div class="infra-icon">🛫</div><div class="infra-name">Kafka</div><div class="infra-detail">9092</div></div>
+            </div>
+
+            <h3 style="text-align: center; margin-bottom: 16px; color: var(--text-secondary);">Kafka Topics</h3>
+            <div class="topics-grid">
+                <span class="topic-badge">ride-requested</span>
+                <span class="topic-badge">driver-assigned</span>
+                <span class="topic-badge">matchmaking-failed</span>
+                <span class="topic-badge">assignment-accepted</span>
+                <span class="topic-badge">assignment-rejected</span>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card"><div class="stat-number">7</div><div class="stat-label">Active Services</div></div>
+                <div class="stat-card"><div class="stat-number">4</div><div class="stat-label">Future Services</div></div>
+                <div class="stat-card"><div class="stat-number">5</div><div class="stat-label">Kafka Topics</div></div>
+                <div class="stat-card"><div class="stat-number">3</div><div class="stat-label">Infrastructure</div></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Ride Booking Flow (HLD) -->
+        <div id="ride-flow" class="tab-content">
+            <div class="flow-container">
+                <div class="flow-title">🚗 Ride Booking Flow (HLD)</div>
+                <div class="flow-subtitle">End-to-end flow from rider request to driver assignment</div>
+
+                <div class="flow-diagram">
+                    <div class="flow-node">📱 Rider App</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node rest">🚪 API Gateway</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node rest">🚕 Cab Service</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node kafka">🛫 Kafka</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node kafka">🎯 Matchmaking</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node redis">📍 Location</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node kafka">🛫 Kafka</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node rest">🚌 Driver Service</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node">📱 Driver App</div>
+                </div>
+
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-step-num">1</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Rider creates ride request</div>
+                            <div class="flow-step-desc">Rider enters pickup location via mobile app. App sends POST /api/rides to API Gateway with JWT token.</div>
+                        </div>
+                        <div class="flow-step-service">Mobile App → API Gateway</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">2</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">API Gateway routes to Cab Service</div>
+                            <div class="flow-step-desc">Gateway validates JWT, applies rate limiting, forwards request to Cab Service (port 8083).</div>
+                        </div>
+                        <div class="flow-step-service">REST</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">3</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Cab Service creates ride record</div>
+                            <div class="flow-step-desc">Creates ride in PostgreSQL with status REQUESTED. Validates rider eligibility. Stores pickup/dropoff coordinates.</div>
+                        </div>
+                        <div class="flow-step-service">PostgreSQL</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">4</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Publish ride.requested event to Kafka</div>
+                            <div class="flow-step-desc">Cab Service publishes to <span class="kafka-event">ride-requested</span> topic. Event contains rideId, pickupLat, pickupLng, radius.</div>
+                        </div>
+                        <div class="flow-step-service">Kafka: ride-requested</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">5</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Matchmaking Service consumes event</div>
+                            <div class="flow-step-desc">Kafka consumer receives ride.requested. Extracts location and starts driver matching process.</div>
+                        </div>
+                        <div class="flow-step-service">Kafka Consumer</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">6</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Find nearby available drivers</div>
+                            <div class="flow-step-desc">Matchmaking calls Location Service to get drivers within radius using Redis GEOSEARCH on <code>drivers:available:geo</code>.</div>
+                        </div>
+                        <div class="flow-step-service">📍 Location Service (Redis GEO)</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">7</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Reserve driver in Redis</div>
+                            <div class="flow-step-desc">Use Redis SETNX with 15s TTL to reserve driver. Key: <code>driver:reserved:{driverId}</code>. Prevents duplicate assignments.</div>
+                        </div>
+                        <div class="flow-step-service">Redis SETNX (15s)</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">8</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Call Driver Service to assign</div>
+                            <div class="flow-step-desc">Matchmaking calls Driver Service POST /api/drivers/{id}/assign with rideId. Driver Service updates driver status to ASSIGNED.</div>
+                        </div>
+                        <div class="flow-step-service">🚌 Driver Service (REST)</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">9</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Publish driver.assigned event</div>
+                            <div class="flow-step-desc">Matchmaking publishes to <span class="kafka-event">driver-assigned</span> topic. Contains driverId, rideId, eta.</div>
+                        </div>
+                        <div class="flow-step-service">Kafka: driver-assigned</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">10</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Cab Service updates ride status</div>
+                            <div class="flow-step-desc">Consumes driver.assigned event. Updates ride status to ASSIGNED in PostgreSQL.</div>
+                        </div>
+                        <div class="flow-step-service">Cab Service</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">11</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Push notification to Driver App</div>
+                            <div class="flow-step-desc">Driver App receives WebSocket/push notification with ride details, pickup location, and ETA.</div>
+                        </div>
+                        <div class="flow-step-service">📱 Driver App</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">12</div>
+                        <div class="flow-step-content">
+                            <div class="flow-step-title">Driver accepts/rejects ride</div>
+                            <div class="flow-step-desc">Driver taps accept. Publishes <span class="kafka-event">assignment-accepted</span> or <span class="kafka-event">assignment-rejected</span> event.</div>
+                        </div>
+                        <div class="flow-step-service">Kafka</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Matchmaking Service Flow (HLD/LLD) -->
+        <div id="matchmaking-flow" class="tab-content">
+            <div class="flow-container">
+                <div class="flow-title">🎯 Matchmaking Service Flow (HLD + LLD)</div>
+                <div class="flow-subtitle">Detailed internal flow showing service interactions and logic</div>
+
+                <h3 style="color: var(--text-secondary); margin-bottom: 20px;">High-Level Flow</h3>
+                <div class="flow-diagram">
+                    <div class="flow-node kafka">🛫 ride.requested</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node">🔍 Find Drivers</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node redis">🔒 Reserve</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node rest">📞 Assign</div>
+                    <span class="flow-arrow-right">→</span>
+                    <div class="flow-node kafka">🛫 result</div>
+                </div>
+
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">Detailed Internal Steps</h3>
+                
+                <div class="matchmaking-flow">
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon kafka">🛫</div>
+                            <div class="match-step-title">1. Consume Event</div>
+                        </div>
+                        <div class="match-step-desc">
+                            Listen to <code>ride-requested</code> topic. Deserialize <span class="kafka-event">RideRequestedEvent</span> containing: rideId, pickupLat, pickupLng, radius (default 5km).
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon rest">📍</div>
+                            <div class="match-step-title">2. Call Location Service</div>
+                        </div>
+                        <div class="match-step-desc">
+                            <code>GET /api/internal/drivers/nearby?lat=X&lng=Y&radius=5</code><br>
+                            Location Service returns list of driver IDs using Redis GEOSEARCH on <code>drivers:available:geo</code> key (v2 optimized).
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon redis">✓</div>
+                            <div class="match-step-title">3. Filter Available Drivers</div>
+                        </div>
+                        <div class="match-step-desc">
+                            Check Redis SET <code>drivers:available</code> to verify driver is marked as available (not on ride). This eliminates offline drivers from geo results.
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon redis">🔒</div>
+                            <div class="match-step-title">4. Reserve Driver (SETNX)</div>
+                        </div>
+                        <div class="match-step-desc">
+                            For each candidate driver (in order):<br>
+                            <code>SETNX driver:reserved:{driverId} {rideId} EX 15</code><br>
+                            If success → proceed to assign. If fails → try next driver.
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon rest">🚌</div>
+                            <div class="match-step-title">5. Call Driver Service</div>
+                        </div>
+                        <div class="match-step-desc">
+                            <code>POST /api/drivers/{driverId}/assign</code><br>
+                            Body: { rideId, pickupAddress, eta }. Driver Service validates driver is still eligible, updates status to ASSIGNED in PostgreSQL.
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon kafka">🛫</div>
+                            <div class="match-step-title">6. Publish Result</div>
+                        </div>
+                        <div class="match-step-desc">
+                            On success: publish <span class="kafka-event">driver-assigned</span> with {driverId, rideId, eta}.<br>
+                            On failure: publish <span class="kafka-event">matchmaking-failed</span> with {rideId, reason}.
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon kafka">🛫</div>
+                            <div class="match-step-title">7. Handle Retry</div>
+                        </div>
+                        <div class="match-step-desc">
+                            Scheduler runs every 30s looking for rides stuck in REQUESTED status for >2min. Re-triggers matchmaking for unmatched rides.
+                        </div>
+                    </div>
+
+                    <div class="match-step">
+                        <div class="match-step-header">
+                            <div class="match-step-icon kafka">🛫</div>
+                            <div class="match-step-title">8. Handle Rejection</div>
+                        </div>
+                        <div class="match-step-desc">
+                            Listen to <code>assignment-rejected</code> topic. Release Redis reservation, delete <code>driver:reserved:{driverId}</code>, retry with next driver.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="retry-flow">
+                    <div class="retry-title">🔄 Retry Logic on Driver Rejection/Timeout</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+                        <strong>Scenario:</strong> Driver doesn't respond within 15s or explicitly rejects<br>
+                        <strong>Action:</strong> 
+                        <ol style="margin: 10px 0 0 20px;">
+                            <li>Delete Redis key <code>driver:reserved:{driverId}</code> (release lock)</li>
+                            <li>Release driver in Location Service (mark available)</li>
+                            <li>Try next available driver from the list</li>
+                            <li>If no more drivers → publish <span class="kafka-event">matchmaking-failed</span></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">Redis Keys Used</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+                    <div class="topic-badge">drivers:available:geo - All driver locations</div>
+                    <div class="topic-badge">drivers:available - Available driver IDs SET</div>
+                    <div class="topic-badge">driver:reserved:{id} - 15s reservation lock</div>
+                    <div class="topic-badge">driver:location:{id} - Individual driver location</div>
+                </div>
+
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">Kafka Topics</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+                    <span class="topic-badge">ride-requested (IN)</span>
+                    <span class="topic-badge">driver-assigned (OUT)</span>
+                    <span class="topic-badge">matchmaking-failed (OUT)</span>
+                    <span class="topic-badge">assignment-accepted (IN)</span>
+                    <span class="topic-badge">assignment-rejected (IN)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Visual Flow Diagram (HLD Style) -->
+        <div id="visual-flow" class="tab-content">
+            <!-- End-to-End Flow -->
+            <div class="visual-flow-container">
+                <div class="visual-flow-title">🚗 End-to-End Ride Booking Flow (HLD)</div>
+                <div class="visual-flow-subtitle">System design diagram showing all service interactions</div>
+
+                <div class="flow-diagram-hld">
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">📱</div>
+                            <div class="flow-box-name">Rider App</div>
+                            <div class="flow-box-detail">Mobile</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label rest">POST /rides</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">🚪</div>
+                            <div class="flow-box-name">API Gateway</div>
+                            <div class="flow-box-detail">:8080</div>
+                            <div class="flow-db">◉ JWT Auth</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label rest">POST /api/rides</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">🚕</div>
+                            <div class="flow-box-name">Cab Service</div>
+                            <div class="flow-box-detail">:8083</div>
+                            <div class="flow-db">◉ PostgreSQL</div>
+                        </div>
+                        <div class="flow-event">ride.requested</div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label kafka">Kafka</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">🎯</div>
+                            <div class="flow-box-name">Matchmaking</div>
+                            <div class="flow-box-detail">:8087</div>
+                            <div class="flow-db">◉ Redis (SETNX)</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label rest">GET /nearby</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">📍</div>
+                            <div class="flow-box-name">Location</div>
+                            <div class="flow-box-detail">:8086</div>
+                            <div class="flow-db">◉ Redis GEO</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label rest">POST /assign</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">🚌</div>
+                            <div class="flow-box-name">Driver Service</div>
+                            <div class="flow-box-detail">:8084</div>
+                            <div class="flow-db">◉ PostgreSQL</div>
+                        </div>
+                        <div class="flow-event">driver.assigned</div>
+                    </div>
+
+                    <div class="flow-connector">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label kafka">Kafka</div>
+                    </div>
+
+                    <div class="flow-box">
+                        <div class="flow-box-inner">
+                            <div class="flow-box-icon">📱</div>
+                            <div class="flow-box-name">Driver App</div>
+                            <div class="flow-box-detail">Mobile</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matchmaking Detailed Flow -->
+            <div class="visual-flow-container">
+                <div class="visual-flow-title">🎯 Matchmaking Service - Internal Flow (LLD)</div>
+                <div class="visual-flow-subtitle">Detailed step-by-step with Redis & Kafka interactions</div>
+
+                <div class="match-diagram">
+                    <div class="match-row">
+                        <div class="match-box kafka">
+                            <div class="match-box-icon">🛫</div>
+                            <div class="match-box-name">1. Consume Event</div>
+                            <div class="match-box-desc">ride-requested topic</div>
+                        </div>
+                        <div class="match-arrow">→</div>
+                        <div class="match-box rest">
+                            <div class="match-box-icon">📍</div>
+                            <div class="match-box-name">2. Find Nearby</div>
+                            <div class="match-box-desc">GET /nearby drivers</div>
+                        </div>
+                        <div class="match-arrow">→</div>
+                        <div class="match-box redis">
+                            <div class="match-box-icon">🔍</div>
+                            <div class="match-box-name">3. Filter</div>
+                            <div class="match-box-desc">Check available set</div>
+                        </div>
+                    </div>
+
+                    <div class="match-arrow-down">↓</div>
+
+                    <div class="match-row">
+                        <div class="match-box redis">
+                            <div class="match-box-icon">🔒</div>
+                            <div class="match-box-name">4. Reserve Driver</div>
+                            <div class="match-box-desc">SETNX 15s TTL</div>
+                        </div>
+                        <div class="match-arrow">→</div>
+                        <div class="match-box rest">
+                            <div class="match-box-icon">📞</div>
+                            <div class="match-box-name">5. Assign</div>
+                            <div class="match-box-desc">POST /drivers/{id}/assign</div>
+                        </div>
+                        <div class="match-arrow">→</div>
+                        <div class="match-box kafka">
+                            <div class="match-box-icon">🛫</div>
+                            <div class="match-box-name">6. Publish Result</div>
+                            <div class="match-box-desc">driver-assigned</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <div style="font-weight: 600; color: var(--accent-warning); margin-bottom: 12px;">🔄 Retry Logic (Driver Rejection/Timeout)</div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary);">
+                        <span>⏱ 15s timeout</span>
+                        <span>→</span>
+                        <span>🗑 DEL driver:reserved:{id}</span>
+                        <span>→</span>
+                        <span>↻ Retry next driver</span>
+                        <span>→</span>
+                        <span>❌ No drivers → publish matchmaking-failed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Flow -->
+            <div class="visual-flow-container">
+                <div class="visual-flow-title">📊 Data Flow - Kafka Topics</div>
+                <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; margin-top: 20px;">
+
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">PRODUCERS</div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="flow-box" style="min-width: auto;">
+                                <div class="flow-box-inner" style="padding: 10px 16px;">
+                                    <div class="flow-box-icon" style="font-size: 1rem;">🚕</div>
+                                    <div class="flow-box-name" style="font-size: 0.75rem;">Cab Service</div>
+                                    <div style="font-size: 0.65rem; color: var(--accent-secondary);">→ ride-requested</div>
+                                </div>
+                            </div>
+                            <div class="flow-box" style="min-width: auto;">
+                                <div class="flow-box-inner" style="padding: 10px 16px;">
+                                    <div class="flow-box-icon" style="font-size: 1rem;">🎯</div>
+                                    <div class="flow-box-name" style="font-size: 0.75rem;">Matchmaking</div>
+                                    <div style="font-size: 0.65rem; color: var(--accent-secondary);">→ driver-assigned<br>→ matchmaking-failed</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; font-size: 2rem; color: var(--accent-secondary);">⇄</div>
+
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">KAFKA BROKER</div>
+                        <div style="background: rgba(139, 92, 246, 0.2); border: 1px solid var(--accent-secondary); border-radius: 12px; padding: 20px;">
+                            <div style="font-family: monospace; font-size: 0.9rem; color: var(--accent-secondary);">
+                                🛫 ride-requested<br>
+                                🛫 driver-assigned<br>
+                                🛫 matchmaking-failed<br>
+                                🛫 assignment-accepted<br>
+                                🛫 assignment-rejected
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; font-size: 2rem; color: var(--accent-secondary);">→</div>
+
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">CONSUMERS</div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="flow-box" style="min-width: auto;">
+                                <div class="flow-box-inner" style="padding: 10px 16px;">
+                                    <div class="flow-box-icon" style="font-size: 1rem;">🎯</div>
+                                    <div class="flow-box-name" style="font-size: 0.75rem;">Matchmaking</div>
+                                    <div style="font-size: 0.65rem; color: var(--accent-secondary);">← ride-requested</div>
+                                </div>
+                            </div>
+                            <div class="flow-box" style="min-width: auto;">
+                                <div class="flow-box-inner" style="padding: 10px 16px;">
+                                    <div class="flow-box-icon" style="font-size: 1rem;">🚕</div>
+                                    <div class="flow-box-name" style="font-size: 0.75rem;">Cab Service</div>
+                                    <div style="font-size: 0.65rem; color: var(--accent-secondary);">← driver-assigned</div>
+                                </div>
+                            </div>
+                            <div class="flow-box" style="min-width: auto;">
+                                <div class="flow-box-inner" style="padding: 10px 16px;">
+                                    <div class="flow-box-icon" style="font-size: 1rem;">🎯</div>
+                                    <div class="flow-box-name" style="font-size: 0.75rem;">Matchmaking</div>
+                                    <div style="font-size: 0.65rem; color: var(--accent-secondary);">← assignment-rejected</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Redis Data Structure -->
+            <div class="visual-flow-container">
+                <div class="visual-flow-title">🔴 Redis Data Structures</div>
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 20px;">
+
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: 12px; padding: 16px 20px; text-align: center;">
+                        <div style="font-size: 1.2rem; margin-bottom: 8px;">🌍 GEO</div>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: var(--accent-success);">drivers:available:geo</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">GEOSEARCH<br>lat, lng + radius</div>
+                    </div>
+
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: 12px; padding: 16px 20px; text-align: center;">
+                        <div style="font-size: 1.2rem; margin-bottom: 8px;">📦 SET</div>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: var(--accent-success);">drivers:available</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">SISMEMBER<br>filter online</div>
+                    </div>
+
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: 12px; padding: 16px 20px; text-align: center;">
+                        <div style="font-size: 1.2rem; margin-bottom: 8px;">🔒 STRING</div>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: var(--accent-success);">driver:reserved:{id}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">SETNX EX 15<br>15s hold lock</div>
+                    </div>
+
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: 12px; padding: 16px 20px; text-align: center;">
+                        <div style="font-size: 1.2rem; margin-bottom: 8px;">📍 HASH</div>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: var(--accent-success);">driver:location:{id}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">lat, lng, updated</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Kafka Events Flow -->
+        <div id="kafka-flow" class="tab-content">
+            <div class="visual-flow-container">
+                <div class="visual-flow-title">🛫 Kafka Events Flow</div>
+                <div class="visual-flow-subtitle">Complete event-driven communication between services</div>
+
+                <!-- Event Flow Diagram -->
+                <div style="margin: 30px 0;">
+                    <h3 style="color: var(--text-secondary); font-size: 1rem; margin-bottom: 20px;">Event Producer → Kafka → Consumer</h3>
+                    
+                    <!-- Ride Request Flow -->
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 30px;">
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🚕</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Cab Service</div>
+                        </div>
+                        <div style="color: var(--accent-secondary); font-size: 1.5rem;">→</div>
+                        <div style="background: rgba(139, 92, 246, 0.2); border: 2px solid var(--accent-secondary); border-radius: 10px; padding: 12px 24px;">
+                            <div style="color: var(--accent-secondary); font-family: monospace; font-size: 0.85rem;">🛫 ride-requested</div>
+                        </div>
+                        <div style="color: var(--accent-secondary); font-size: 1.5rem;">→</div>
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🎯</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Matchmaking</div>
+                        </div>
+                    </div>
+
+                    <!-- Matchmaking Process -->
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 30px;">
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">📍</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Location Svc</div>
+                        </div>
+                        <div style="color: var(--accent-primary); font-size: 1.5rem;">←→</div>
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🔴</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Redis</div>
+                        </div>
+                        <div style="color: var(--accent-primary); font-size: 1.5rem;">←→</div>
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🚌</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Driver Svc</div>
+                        </div>
+                    </div>
+
+                    <!-- Driver Assignment Flow -->
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🎯</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Matchmaking</div>
+                        </div>
+                        <div style="color: var(--accent-secondary); font-size: 1.5rem;">→</div>
+                        <div style="background: rgba(139, 92, 246, 0.2); border: 2px solid var(--accent-secondary); border-radius: 10px; padding: 12px 24px;">
+                            <div style="color: var(--accent-secondary); font-family: monospace; font-size: 0.85rem;">🛫 driver-assigned</div>
+                        </div>
+                        <div style="color: var(--accent-secondary); font-size: 1.5rem;">→</div>
+                        <div class="flow-box-inner" style="padding: 12px 20px;">
+                            <div class="flow-box-icon">🚕</div>
+                            <div class="flow-box-name" style="font-size: 0.85rem;">Cab Service</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Events Table -->
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">All Kafka Events</h3>
+                
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: var(--bg-card-hover);">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color); color: var(--text-muted);">Topic</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color); color: var(--text-muted);">Producer</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color); color: var(--text-muted);">Consumer</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color); color: var(--text-muted);">Payload</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color); color: var(--text-muted);">Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);"><span class="kafka-event">ride-requested</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🚕 Cab Service</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🎯 Matchmaking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">rideId, riderId, pickupLat/Lng</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">Trigger driver matching</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);"><span class="kafka-event">driver-assigned</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🎯 Matchmaking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🚕 Cab Service</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">rideId, driverId, eta</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">Update ride status</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);"><span class="kafka-event">matchmaking-failed</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🎯 Matchmaking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🚕 Cab Service</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">rideId, reason</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">Handle no driver found</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);"><span class="kafka-event">assignment-accepted</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🚕 Cab Service</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🎯 Matchmaking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">dispatchId, rideId, driverId</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">Driver accepts (via Cab API)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);"><span class="kafka-event">assignment-rejected</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🚕 Cab Service</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">🎯 Matchmaking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">dispatchId, rideId, driverId</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">Trigger retry with next driver</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- User-Facing APIs -->
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">User-Facing REST APIs</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    
+                    <div style="background: var(--bg-card-hover); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">🚕 Cab Service (Port 8083)</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-success);">POST</code> /api/rides - Create ride (Rider)</div>
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-success);">GET</code> /api/rides/{id} - Get ride status (Rider)</div>
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-success);">POST</code> /api/rides/{id}/cancel - Cancel ride (Rider)</div>
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-primary);">POST</code> /dispatch/driver-response - Driver response (Driver) 🔄 MOVED</div>
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-primary);">POST</code> /dispatch/cancel - Cancel dispatch (Rider) 🔄 MOVED</div>
+                            <div style="margin: 6px 0;"><code style="color: var(--accent-primary);">GET</code> /dispatch/{id} - Get dispatch status (Rider) 🔄 MOVED</div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-card-hover); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">🎯 Matchmaking Service (Port 8087)</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="margin: 6px 0;"><span style="color: var(--accent-success);">INTERNAL ONLY</span></div>
+                            <div style="margin: 6px 0; opacity: 0.7;"><code style="color: var(--text-muted);">GET</code> /internal/dispatch/{id} - Status (from Cab)</div>
+                            <div style="margin: 6px 0; opacity: 0.7;">← Consumed via Kafka: ride-requested</div>
+                            <div style="margin: 6px 0; opacity: 0.7;">← Consumed via Kafka: assignment-rejected</div>
+                            <div style="margin: 6px 0; font-size: 0.75rem; color: var(--accent-warning); margin-top: 8px;">⚠️ No user-facing endpoints</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Flow Summary -->
+                <h3 style="color: var(--text-secondary); margin: 30px 0 20px;">Complete Flow Summary</h3>
+                <div style="background: var(--bg-card-hover); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                    <pre style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.8; overflow-x: auto;">
+1. Rider → POST /api/rides → Cab Service → Kafka: ride-requested
+2. Matchmaking ← Kafka: ride-requested
+3. Matchmaking → Location Service → Redis (GEO search)
+4. Matchmaking → Redis (SETNX 15s reserve driver)
+5. Matchmaking → Driver Service (POST /assign)
+6. Matchmaking → Kafka: driver-assigned
+7. Cab Service ← Kafka: driver-assigned → Update DB
+8. Driver → POST /dispatch/driver-response → Cab Service
+9. Cab Service → Kafka: assignment-accepted/rejected
+10. Matchmaking ← Kafka: assignment-rejected → Retry next driver</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

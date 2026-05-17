@@ -1,10 +1,12 @@
 # 🎯 MATCHMAKING SERVICE — HLD + LLD (Smart Mobility)
 
+> ⚠️ **IMPORTANT:** Matchmaking Service is **INTERNAL ONLY** - no user-facing REST APIs. All communication happens via Kafka events.
+
 ## Service Configuration
 
 * **Port:** 8087
 * **Data Store:** PostgreSQL + Redis
-* **Clients:** Cab Service (Kafka), Driver Service (REST), Location Service (REST)
+* **Clients:** Cab Service (Kafka + REST), Driver Service (REST), Location Service (REST)
 
 
 # 🏗️ High Level Design (HLD)
@@ -25,21 +27,22 @@ Matchmaking Service handles **driver discovery, assignment, and dispatch coordin
 
 ### Core (v2 Dispatch)
 
-* Consume `RideRequested` events from Kafka
+* Consume `ride-requested` events from Kafka
 * Find nearby drivers via Location Service
 * Filter eligible drivers (available, not reserved)
 * Rank drivers (distance, rating, acceptance rate)
 * Reserve driver in Redis (15s TTL)
-* Send assignment request to driver
-* Handle driver accept/reject via REST API
+* Send assignment to Driver Service
+* **Consume driver response via Kafka** (assignment-accepted/rejected)
 * Sequential retry on reject/timeout
-* Publish `DriverAssigned` or `NoDriverFound`
+* Publish `driver-assigned` or `matchmaking-failed`
 
 ### Boundaries
 
 * ❌ Driver profiles (driver-service)
 * ❌ Driver locations (location-service)
 * ❌ Ride lifecycle (cab-service)
+* ❌ User-facing APIs (moved to cab-service)
 * ❌ Payment/pricing (future)
 
 
@@ -47,26 +50,25 @@ Matchmaking Service handles **driver discovery, assignment, and dispatch coordin
 
 ## 🔗 Inter-Service Communication
 
-### Sync (REST)
+### Sync (REST) - INTERNAL
 
 * Matchmaking → Location Service (nearby drivers)
 * Matchmaking → Driver Service (driver availability)
-* Driver App → Matchmaking (accept/reject response)
+* Matchmaking ← Cab Service (GET /internal/dispatch/{id})
 
 ### Async (Kafka)
 
 **Consumes:**
 ```
-ride-requested      → from cab-service
-assignment-accepted → from driver-service (future)
-assignment-rejected → from driver-service (future)
+ride-requested         → from cab-service (trigger matching)
+assignment-accepted   → from cab-service (driver accepted via /dispatch/driver-response)
+assignment-rejected   → from cab-service (driver rejected - triggers retry)
 ```
 
 **Produces:**
 ```
-driver-assigned     → to cab-service
-matchmaking-failed  → to cab-service
-assignment-requested → to driver-service (future)
+driver-assigned        → to cab-service
+matchmaking-failed     → to cab-service
 ```
 
 
@@ -191,32 +193,21 @@ created_at         TIMESTAMP
 
 ---
 
-## 🌐 APIs
-
-### Driver Response
-
-POST /dispatch/driver-response
-```json
-{
-  "dispatchId": "uuid",
-  "driverId": 12345,
-  "response": "ACCEPT" | "REJECT"
-}
-```
-
-### Cancel Dispatch
-
-POST /dispatch/cancel
-```json
-{
-  "rideId": "uuid",
-  "reason": "USER_CANCELLED"
-}
-```
+## 🌐 APIs - INTERNAL ONLY
 
 ### Get Dispatch Status
 
-GET /dispatch/{rideId}
+```
+GET /internal/dispatch/{rideId}
+```
+> Called by Cab Service to get dispatch status for ride
+
+### No User-Facing Endpoints
+
+All driver interaction now goes through **Cab Service**:
+- Driver calls `POST /dispatch/driver-response` (Cab Service)
+- Cab Service publishes to Kafka: `assignment-accepted` or `assignment-rejected`
+- Matchmaking consumes these events and handles retry logic
 
 
 ---
@@ -351,8 +342,9 @@ return FAILED
 
 ## 🔑 Key Insights
 
-* Matchmaking = **coordination engine (not source of truth)**
+* Matchmaking = **internal coordination engine (no user-facing APIs)**
 * Redis reservation = **critical for preventing double-assignment**
 * Sequential retry = **simpler than parallel fanout (v2)**
 * State machine = **clear dispatch lifecycle**
 * Reuse existing clients = **location-service, driver-service**
+* **Driver response flow:** Driver App → Cab Service → Kafka → Matchmaking

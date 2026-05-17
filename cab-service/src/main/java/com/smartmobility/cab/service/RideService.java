@@ -15,6 +15,8 @@ public interface RideService {
 
     void handleDriverAssignedEvent(String eventId, UUID rideId, Long driverId);
 
+    void handleMatchmakingFailedEvent(String eventId, UUID rideId, String reason);
+
     RideResponseDTO startRide(UUID rideId);
 
     RideResponseDTO completeRide(UUID rideId);

@@ -26,4 +26,8 @@ public class RequestedState implements RideState {
         ride.setStatus(RideStatus.CANCELLED);
     }
 
+    public void failNoDriver(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot fail in REQUESTED state - must match first");
+    }
+
 }
