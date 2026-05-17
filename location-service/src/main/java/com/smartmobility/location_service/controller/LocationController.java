@@ -60,7 +60,13 @@ public class LocationController {
     // 4️⃣ Nearby drivers (INTERNAL ONLY - for matchmaking service)
     @PostMapping("/nearby")
     public ResponseEntity<ApiResponse<List<Long>>> getNearbyDrivers(
+            @RequestHeader(value = "X-Internal-Service", required = false) String internalService,
             @Valid @RequestBody NearbyDriversRequest request) {
+
+        if (internalService == null || !internalService.equals("matchmaking-service")) {
+            return ResponseEntity.status(403)
+                    .body(ApiResponseBuilder.error("Forbidden: Internal API only", "FORBIDDEN"));
+        }
 
         List<Long> drivers = locationService.getNearbyDrivers(
                 request.getLat(),
