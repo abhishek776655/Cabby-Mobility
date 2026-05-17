@@ -10,6 +10,7 @@ import org.springframework.data.redis.domain.geo.GeoReference;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Repository
@@ -17,37 +18,40 @@ import java.util.stream.Collectors;
 public class LocationRepositoryImpl implements LocationRepository {
 
     private final GeoOperations<String, String> geoOps;
+    private final GeoOperations<String, String> availableGeoOps;
     private final SetOperations<String, String> setOps;
 
     // 1️⃣ Upsert location
     @Override
     public void upsertDriverLocation(String driverId, double lat, double lng) {
-
         Point point = new Point(lng, lat);
-
         geoOps.add(RedisKeys.DRIVERS_GEO, point, driverId);
+        if (Boolean.TRUE.equals(setOps.isMember(RedisKeys.DRIVERS_AVAILABLE, driverId))) {
+            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, point, driverId);
+        }
     }
 
     // 2️⃣ Mark ONLINE
     @Override
     public void markDriverOnline(String driverId) {
-
         setOps.add(RedisKeys.DRIVERS_AVAILABLE, driverId);
+        List<Point> points = geoOps.position(RedisKeys.DRIVERS_GEO, driverId);
+        if (points != null && !points.isEmpty()) {
+            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, points.get(0), driverId);
+        }
     }
 
     // 3️⃣ Mark OFFLINE
     @Override
     public void markDriverOffline(String driverId) {
-
         setOps.remove(RedisKeys.DRIVERS_AVAILABLE, driverId);
+        availableGeoOps.remove(RedisKeys.DRIVERS_AVAILABLE_GEO, driverId);
     }
 
     // 4️⃣ Find nearby drivers
     @Override
     public List<String> findNearbyDrivers(double lat, double lng, double radiusKm, int limit) {
-
         Point center = new Point(lng, lat);
-
         Distance radius = new Distance(radiusKm, Metrics.KILOMETERS);
 
         RedisGeoCommands.GeoSearchCommandArgs args = RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs()
@@ -56,7 +60,7 @@ public class LocationRepositoryImpl implements LocationRepository {
                 .limit(limit);
 
         GeoResults<RedisGeoCommands.GeoLocation<String>> results =
-                geoOps.search(RedisKeys.DRIVERS_GEO,
+                availableGeoOps.search(RedisKeys.DRIVERS_AVAILABLE_GEO,
                         GeoReference.fromCoordinate(center),
                         radius,
                         args);
@@ -65,14 +69,6 @@ public class LocationRepositoryImpl implements LocationRepository {
 
         return results.getContent().stream()
                 .map(r -> r.getContent().getName())
-                .filter(this::isDriverOnline)
                 .collect(Collectors.toList());
-    }
-
-    // internal helper (NOT exposed)
-    private boolean isDriverOnline(String driverId) {
-        return Boolean.TRUE.equals(
-                setOps.isMember(RedisKeys.DRIVERS_AVAILABLE, driverId)
-        );
     }
 }
