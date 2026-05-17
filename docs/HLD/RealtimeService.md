@@ -2,7 +2,7 @@
 
 ## Service Configuration
 
-* **Port:** 8085
+* **Port:** 8095
 * **Data Store:** None (stateless, event fanout)
 * **Clients:** Rider App (WebSocket), Driver App (WebSocket)
 
@@ -177,7 +177,7 @@ realtime-gateway-service/
 ### WebSocket Endpoint
 
 ```
-ws://localhost:8085/ws
+ws://localhost:8095/ws
 ```
 
 ### STOMP Destinations
@@ -229,7 +229,7 @@ public void broadcastAssignmentRequest(AssignmentRequestedEvent event) {
 
 ```yaml
 server:
-  port: 8085
+  port: 8095
 
 spring:
   application:

@@ -69,7 +69,7 @@ REQUESTED → MATCHING → ACCEPTED → STARTED → COMPLETED
 
 | From State | To State | Trigger |
 |------------|----------|---------|
-| REQUESTED | MATCHING | ride.requested published |
+| REQUESTED | MATCHING | ride-requested published |
 | MATCHING | ACCEPTED | driver-assigned consumed |
 | ACCEPTED | STARTED | driver starts ride |
 | STARTED | COMPLETED | driver completes ride |

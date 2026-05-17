@@ -11,12 +11,12 @@ Client → API Gateway → Microservices → Kafka → DB/Cache/Redis
 ```
 
 - **API Gateway** (8080) - Request routing, JWT auth, rate limiting
-- **Auth Service** (8082) - Authentication & JWT issuance
+- **Auth Service** (8091) - Authentication & JWT issuance
 - **User Service** (8081) - User profile management
-- **Cab Service** (8083) - Ride orchestration & state machine
+- **Cab Service** (8089) - Ride orchestration & state machine
 - **Driver Service** (8084) - Driver management & availability
-- **Realtime Gateway** (8085) - WebSocket/STOMP real-time updates
-- **Location Service** (8086) - Driver location (Redis GEO)
+- **Realtime Gateway** (8095) - WebSocket/STOMP real-time updates
+- **Location Service** (8090) - Driver location (Redis GEO)
 - **Matchmaking Service** (8087) - Driver matching algorithm
 - **Eureka Service** - Service discovery
 
@@ -66,12 +66,12 @@ cd eureka-service && mvn spring-boot:run
 | Service | Port |
 |---------|------|
 | API Gateway | 8080 |
-| Auth Service | 8082 |
+| Auth Service | 8091 |
 | User Service | 8081 |
-| Cab Service | 8083 |
+| Cab Service | 8089 |
 | Driver Service | 8084 |
-| Realtime Gateway | 8085 |
-| Location Service | 8086 |
+| Realtime Gateway | 8095 |
+| Location Service | 8090 |
 | Matchmaking Service | 8087 |
 | Eureka | 8761 |
 
@@ -87,7 +87,7 @@ REQUESTED → MATCHED → ACCEPTED → STARTED → COMPLETED → CANCELLED
 
 ### Real-time Communication
 
-- WebSocket/STOMP via Realtime Gateway (8085)
+- WebSocket/STOMP via Realtime Gateway (8095)
 - Rider trip tracking: Subscribe to `/topic/trip/{rideId}`
 - Driver notifications: Subscribe to `/topic/driver/{driverId}`
 
@@ -162,11 +162,11 @@ POST /location/driver/offline
 POST /location/driver/update
 ```
 
-> **Note:** `/location/nearby` is internal-only (used by Matchmaking Service)
+> **Note:** `/location/internal/nearby` is internal-only (used by Matchmaking Service)
 
 ### WebSocket
 ```
-ws://localhost:8085/ws
+ws://localhost:8095/ws
 STOMP: /topic/trip/{rideId}, /topic/driver/{driverId}
 ```
 

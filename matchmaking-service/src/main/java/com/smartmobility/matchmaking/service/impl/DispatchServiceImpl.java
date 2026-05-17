@@ -327,6 +327,7 @@ public class DispatchServiceImpl implements DispatchService {
             .build();
         
         log.info("Assignment requested to driver {} for ride {}", candidateId, session.getRideId());
+        eventProducer.publishAssignmentRequested(assignmentEvent);
 
         cacheService.saveDispatchState(session.getDispatchId().toString(),
             DispatchStatus.ASSIGNMENT_SENT.name(), candidateId, session.getExpiresAt().toEpochMilli());

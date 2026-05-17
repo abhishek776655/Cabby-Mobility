@@ -1,0 +1,63 @@
+<h2>What should the architecture deliverable be?</h2>
+<p class="subtitle">Pick the format that would be most useful for this project. I can still include notes and legends either way.</p>
+
+<div class="cards">
+  <div class="card" data-choice="single-hld-poster" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Single HLD Poster</div>
+        <div class="mockup-body">
+          <div class="mock-nav">Clients | API Gateway | Services | Data Plane</div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:12px;margin-top:12px">
+            <div class="placeholder">Rider App<br>Driver App</div>
+            <div class="placeholder">Auth, User, Cab, Driver, Location, Matchmaking, Realtime</div>
+            <div class="placeholder">Kafka<br>Redis<br>PostgreSQL<br>Eureka</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>One beautiful overview</h3>
+      <p>Best for README, presentations, onboarding, and explaining the whole platform at a glance.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hld-plus-flows" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">HLD + Data Flows</div>
+        <div class="mockup-body">
+          <div class="mock-nav">Overview Diagram</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="placeholder">Ride Request Flow</div>
+            <div class="placeholder">Driver Location Flow</div>
+            <div class="placeholder">Auth/User Flow</div>
+            <div class="placeholder">Realtime Fanout Flow</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Recommended: overview plus flows</h3>
+      <p>Best balance: a polished system map plus separate flow diagrams for ride booking, dispatch, auth, and realtime updates.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="deep-technical-doc" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Deep Technical HLD</div>
+        <div class="mockup-body">
+          <div class="placeholder">Service boundaries</div>
+          <div class="placeholder">Kafka contracts</div>
+          <div class="placeholder">Storage models</div>
+          <div class="placeholder">Failure handling</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Detailed architecture pack</h3>
+      <p>Best for engineering handoff: more diagrams, contracts, internal APIs, state machines, and known inconsistencies.</p>
+    </div>
+  </div>
+</div>

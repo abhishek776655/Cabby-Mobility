@@ -46,8 +46,7 @@ Driver Service manages real-time driver state:
 
 * driver.status.updated
 * driver.location.updated
-* driver.accepted
-* driver.rejected
+* user.created is consumed for driver onboarding
 
 **Consumes:**
 
@@ -208,10 +207,10 @@ kafka.publish(event);
 
 ## 📡 Kafka Events
 
-### driver.accepted
+### user.created
 
 ```json
-{ "driverId": "uuid", "rideId": "uuid" }
+{ "userId": "uuid", "role": "DRIVER" }
 ```
 
 ### driver.status.updated

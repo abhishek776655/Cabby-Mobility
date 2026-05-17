@@ -2,7 +2,7 @@
 
 ## Service Configuration
 
-* **Port:** 8086
+* **Port:** 8090
 * **Data Store:** Redis (GEO + SET)
 * **Clients:** Matchmaking Service, Driver Service
 
@@ -213,7 +213,7 @@ Value: driverId → lat/lng (only online drivers)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/location/nearby` | POST | Find nearby drivers (not exposed to external clients) |
+| `/location/internal/nearby` | POST | Find nearby drivers (not exposed to external clients) |
 
 
 

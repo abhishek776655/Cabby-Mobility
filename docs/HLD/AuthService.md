@@ -2,7 +2,7 @@
 
 ## Service Configuration
 
-* **Port:** 8082
+* **Port:** 8091
 * **Database:** PostgreSQL
 * **Security:** Spring Security + JWT
 
