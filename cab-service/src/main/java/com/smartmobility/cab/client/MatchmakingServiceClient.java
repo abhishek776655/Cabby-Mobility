@@ -15,7 +15,7 @@ public class MatchmakingServiceClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.matchmaking.url:http://localhost:8087}")
+    @Value("${services.matchmaking.url}")
     private String matchmakingUrl;
 
     public MatchmakingServiceClient(RestTemplate restTemplate) {

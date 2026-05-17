@@ -11,7 +11,7 @@ public class OngoingState implements RideState {
         throw new InvalidStateTransitionException("Ride already started");
     }
 
-    public void assignDriver(RideEntity ride, Long driverId) {
+    public void assignDriver(RideEntity ride, Long driverUserId) {
         throw new InvalidStateTransitionException("Driver already assigned");
     }
 

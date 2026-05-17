@@ -17,14 +17,14 @@ public class DispatchSessionEntity {
     private UUID rideId;
 
     @Column(name = "rider_id", nullable = false)
-    private UUID riderId;
+    private Long riderUserId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DispatchStatus status;
 
     @Column(name = "current_driver_id")
-    private Long currentDriverId;
+    private Long currentDriverUserId;
 
     @Column(name = "remaining_candidates", columnDefinition = "TEXT")
     private String remainingCandidates;
@@ -45,12 +45,12 @@ public class DispatchSessionEntity {
     public void setDispatchId(UUID dispatchId) { this.dispatchId = dispatchId; }
     public UUID getRideId() { return rideId; }
     public void setRideId(UUID rideId) { this.rideId = rideId; }
-    public UUID getRiderId() { return riderId; }
-    public void setRiderId(UUID riderId) { this.riderId = riderId; }
+    public Long getRiderUserId() { return riderUserId; }
+    public void setRiderUserId(Long riderUserId) { this.riderUserId = riderUserId; }
     public DispatchStatus getStatus() { return status; }
     public void setStatus(DispatchStatus status) { this.status = status; }
-    public Long getCurrentDriverId() { return currentDriverId; }
-    public void setCurrentDriverId(Long currentDriverId) { this.currentDriverId = currentDriverId; }
+    public Long getCurrentDriverUserId() { return currentDriverUserId; }
+    public void setCurrentDriverUserId(Long currentDriverUserId) { this.currentDriverUserId = currentDriverUserId; }
     public String getRemainingCandidates() { return remainingCandidates; }
     public void setRemainingCandidates(String remainingCandidates) { this.remainingCandidates = remainingCandidates; }
     public Integer getRetryCount() { return retryCount; }

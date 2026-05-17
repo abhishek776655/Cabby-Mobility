@@ -1,7 +1,5 @@
 package com.smartmobility.matchmaking.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmobility.matchmaking.client.DriverServiceClient;
 import com.smartmobility.matchmaking.client.LocationServiceClient;
 import com.smartmobility.matchmaking.config.MatchmakingProperties;
@@ -26,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -65,40 +64,40 @@ public class DispatchServiceImpl implements DispatchService {
             return;
         }
 
-        List<Long> nearbyDriverIds = locationClient.findNearbyDrivers(
+        List<Long> nearbyDriverUserIds = locationClient.findNearbyDrivers(
             event.getPickupLatitude(), event.getPickupLongitude(),
             discoveryRadiusKm, discoveryLimit);
 
-        if (nearbyDriverIds.isEmpty()) {
+        if (nearbyDriverUserIds.isEmpty()) {
             publishNoDriverFound(event, "NO_DRIVER_AVAILABLE");
             return;
         }
 
-        List<Long> eligibleDriverIds = filterEligibleDrivers(nearbyDriverIds);
+        List<Long> eligibleDriverUserIds = filterEligibleDrivers(nearbyDriverUserIds);
 
-        if (eligibleDriverIds.isEmpty()) {
+        if (eligibleDriverUserIds.isEmpty()) {
             publishNoDriverFound(event, "NO_DRIVER_AVAILABLE");
             return;
         }
 
-        List<Long> rankedDriverIds = rankDrivers(eligibleDriverIds, event.getPickupLatitude(), event.getPickupLongitude());
+        List<Long> rankedDriverUserIds = rankDrivers(eligibleDriverUserIds, event.getPickupLatitude(), event.getPickupLongitude());
 
         Instant expiresAt = Instant.now().plus(30, ChronoUnit.SECONDS);
         
         DispatchSessionEntity session = new DispatchSessionEntity();
         session.setDispatchId(UUID.randomUUID());
         session.setRideId(event.getRideId());
-        session.setRiderId(event.getRiderId());
+        session.setRiderUserId(event.getRiderUserId());
         session.setStatus(DispatchStatus.SEARCHING);
-        session.setCurrentDriverId(null);
+        session.setCurrentDriverUserId(null);
         session.setRetryCount(0);
         session.setCreatedAt(Instant.now());
         session.setExpiresAt(expiresAt);
         session.setUpdatedAt(Instant.now());
         
         try {
-            session.setRemainingCandidates(objectMapper.writeValueAsString(rankedDriverIds));
-        } catch (JsonProcessingException e) {
+            session.setRemainingCandidates(objectMapper.writeValueAsString(rankedDriverUserIds));
+        } catch (Exception e) {
             log.error("Failed to serialize candidates", e);
         }
 
@@ -112,55 +111,55 @@ public class DispatchServiceImpl implements DispatchService {
 
     @Override
     @Transactional
-    public void handleDriverResponse(UUID dispatchId, Long driverId, boolean accepted) {
+    public void handleDriverResponse(UUID dispatchId, Long driverUserId, boolean accepted) {
         DispatchSessionEntity session = dispatchRepository.findById(dispatchId)
             .orElseThrow(() -> new DispatchNotFoundException("Dispatch not found: " + dispatchId));
 
-        if (!Objects.equals(session.getCurrentDriverId(), driverId)) {
+        if (!Objects.equals(session.getCurrentDriverUserId(), driverUserId)) {
             log.warn("Driver {} response for dispatch {} but current driver is {}", 
-                driverId, dispatchId, session.getCurrentDriverId());
+                driverUserId, dispatchId, session.getCurrentDriverUserId());
             return;
         }
 
-        if (!reservationService.hasActiveReservation(driverId)) {
+        if (!reservationService.hasActiveReservation(driverUserId)) {
             throw new ReservationExpiredException();
         }
 
         if (accepted) {
-            handleAcceptance(session, driverId);
+            handleAcceptance(session, driverUserId);
         } else {
-            handleRejection(session, driverId);
+            handleRejection(session, driverUserId);
         }
     }
 
-    private void handleAcceptance(DispatchSessionEntity session, Long driverId) {
-        reservationService.releaseReservation(driverId, session.getDispatchId().toString());
+    private void handleAcceptance(DispatchSessionEntity session, Long driverUserId) {
+        reservationService.releaseReservation(driverUserId, session.getDispatchId().toString());
 
         session.setStatus(DispatchStatus.ASSIGNED);
         session.setUpdatedAt(Instant.now());
         dispatchRepository.save(session);
 
-        recordAttempt(session.getDispatchId(), driverId, null, AttemptStatus.ACCEPTED, null);
+        recordAttempt(session.getDispatchId(), driverUserId, null, AttemptStatus.ACCEPTED, null);
         
         cacheService.saveDispatchState(session.getDispatchId().toString(), 
-            DispatchStatus.ASSIGNED.name(), driverId, 0);
+            DispatchStatus.ASSIGNED.name(), driverUserId, 0);
 
         DriverAssignedEvent assignedEvent = DriverAssignedEvent.builder()
             .eventId(UUID.randomUUID().toString())
             .rideId(session.getRideId())
-            .driverId(driverId)
+            .driverUserId(driverUserId)
             .assignedAt(java.time.LocalDateTime.now())
             .build();
         
         eventProducer.publishDriverAssigned(assignedEvent);
         
-        log.info("Driver {} assigned to ride {}", driverId, session.getRideId());
+        log.info("Driver {} assigned to ride {}", driverUserId, session.getRideId());
     }
 
-    private void handleRejection(DispatchSessionEntity session, Long driverId) {
-        reservationService.releaseReservation(driverId, session.getDispatchId().toString());
+    private void handleRejection(DispatchSessionEntity session, Long driverUserId) {
+        reservationService.releaseReservation(driverUserId, session.getDispatchId().toString());
         
-        recordAttempt(session.getDispatchId(), driverId, null, AttemptStatus.REJECTED, "DRIVER_REJECTED");
+        recordAttempt(session.getDispatchId(), driverUserId, null, AttemptStatus.REJECTED, "DRIVER_REJECTED");
 
         List<Long> remaining = parseCandidates(session.getRemainingCandidates());
         
@@ -189,12 +188,12 @@ public class DispatchServiceImpl implements DispatchService {
         }
 
         session.setStatus(DispatchStatus.RETRYING);
-        session.setCurrentDriverId(nextDriver);
+        session.setCurrentDriverUserId(nextDriver);
         session.setRetryCount(session.getRetryCount() + 1);
         
         try {
             session.setRemainingCandidates(objectMapper.writeValueAsString(nextList));
-        } catch (JsonProcessingException e) {}
+        } catch (Exception e) {}
         
         session.setUpdatedAt(Instant.now());
         dispatchRepository.save(session);
@@ -236,8 +235,8 @@ public class DispatchServiceImpl implements DispatchService {
             throw new InvalidDispatchStateException("Cannot cancel dispatch in status: " + session.getStatus());
         }
 
-        if (session.getCurrentDriverId() != null) {
-            reservationService.releaseReservation(session.getCurrentDriverId(), session.getDispatchId().toString());
+        if (session.getCurrentDriverUserId() != null) {
+            reservationService.releaseReservation(session.getCurrentDriverUserId(), session.getDispatchId().toString());
         }
 
         session.setStatus(DispatchStatus.CANCELLED);
@@ -257,7 +256,7 @@ public class DispatchServiceImpl implements DispatchService {
                 response.setDispatchId(session.getDispatchId());
                 response.setRideId(session.getRideId());
                 response.setStatus(session.getStatus());
-                response.setDriverId(session.getCurrentDriverId());
+                response.setDriverUserId(session.getCurrentDriverUserId());
                 response.setRetryCount(session.getRetryCount());
                 response.setCreatedAt(session.getCreatedAt());
                 response.setExpiresAt(session.getExpiresAt());
@@ -265,20 +264,20 @@ public class DispatchServiceImpl implements DispatchService {
             });
     }
 
-    private List<Long> filterEligibleDrivers(List<Long> driverIds) {
-        return driverIds.stream()
-            .filter(driverId -> {
-                if (reservationService.hasActiveReservation(driverId)) {
+    private List<Long> filterEligibleDrivers(List<Long> driverUserIds) {
+        return driverUserIds.stream()
+            .filter(driverUserId -> {
+                if (reservationService.hasActiveReservation(driverUserId)) {
                     return false;
                 }
-                var driver = driverClient.getDriver(driverId);
+                var driver = driverClient.getDriver(driverUserId);
                 return driver != null && Boolean.TRUE.equals(driver.getAvailable());
             })
             .toList();
     }
 
-    private List<Long> rankDrivers(List<Long> driverIds, double lat, double lng) {
-        return driverIds;
+    private List<Long> rankDrivers(List<Long> driverUserIds, double lat, double lng) {
+        return driverUserIds;
     }
 
     private void assignNextCandidate(DispatchSessionEntity session, RideRequestedEvent event) {
@@ -298,18 +297,18 @@ public class DispatchServiceImpl implements DispatchService {
         if (!reserved) {
             try {
                 session.setRemainingCandidates(objectMapper.writeValueAsString(nextCandidates));
-            } catch (JsonProcessingException e) {}
+            } catch (Exception e) {}
             dispatchRepository.save(session);
             assignNextCandidate(session, event);
             return;
         }
 
         session.setStatus(DispatchStatus.ASSIGNMENT_SENT);
-        session.setCurrentDriverId(candidateId);
+        session.setCurrentDriverUserId(candidateId);
         
         try {
             session.setRemainingCandidates(objectMapper.writeValueAsString(nextCandidates));
-        } catch (JsonProcessingException e) {}
+        } catch (Exception e) {}
         
         session.setUpdatedAt(Instant.now());
         dispatchRepository.save(session);
@@ -320,7 +319,7 @@ public class DispatchServiceImpl implements DispatchService {
             .eventId(UUID.randomUUID().toString())
             .dispatchId(session.getDispatchId())
             .rideId(session.getRideId())
-            .driverId(candidateId)
+            .driverUserId(candidateId)
             .pickupLatitude(event.getPickupLatitude())
             .pickupLongitude(event.getPickupLongitude())
             .pickupLocation(event.getPickupLocation())
@@ -333,11 +332,11 @@ public class DispatchServiceImpl implements DispatchService {
             DispatchStatus.ASSIGNMENT_SENT.name(), candidateId, session.getExpiresAt().toEpochMilli());
     }
 
-    private void recordAttempt(UUID dispatchId, Long driverId, Double score, 
+    private void recordAttempt(UUID dispatchId, Long driverUserId, Double score, 
                                AttemptStatus status, String failureReason) {
         AssignmentAttempt attempt = new AssignmentAttempt();
         attempt.setRideId(dispatchId);
-        attempt.setDriverId(driverId);
+        attempt.setDriverUserId(driverUserId);
         attempt.setScore(score);
         attempt.setStatus(AssignmentStatus.valueOf(status.name()));
         attempt.setFailureReason(failureReason);

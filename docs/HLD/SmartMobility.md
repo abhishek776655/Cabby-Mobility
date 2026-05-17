@@ -100,6 +100,7 @@ REQUESTED → MATCHED → ACCEPTED → STARTED → COMPLETED → CANCELLED
 | Driver Service | 8084 | Spring Boot |
 | Location Service | 8086 | Spring Boot + Redis |
 | Matchmaking Service | 8087 | Spring Boot + Kafka |
+| Realtime Gateway | 8085 | Spring Boot + WebSocket |
 | PostgreSQL | 5432 | - |
 | Redis | 6379 | - |
 | Kafka | 9092 | - |
@@ -260,6 +261,7 @@ Notification --> Rider
 | /driver/** | driver-service | 8084 | ADMIN, DRIVER |
 | /location/** | location-service | 8086 | ADMIN, DRIVER |
 | /internal/** | matchmaking-service | 8087 | INTERNAL ONLY |
+| /ws/** | realtime-gateway-service | 8085 | RIDER, DRIVER (WebSocket) |
 
 ---
 
@@ -353,10 +355,27 @@ Notification --> Rider
 
 * Sync → Matchmaking Service
 * Redis for spatial data
+* Emits → driver-location-events (Kafka)
 
 ---
 
-## 8. Pricing Service (Future)
+## 8. Realtime Gateway Service
+
+### Responsibilities
+
+* Event fanout via WebSocket/STOMP
+* Rider trip tracking (driver location broadcasts)
+* Driver assignment notifications
+* Stateless, no persistence
+
+### Communication
+
+* Consumes → driver-location-events, assignment-requested (Kafka)
+* WebSocket → Rider App, Driver App
+
+---
+
+## 9. Pricing Service (Future)
 
 ### Responsibilities
 
@@ -391,6 +410,8 @@ Notification --> Rider
 | matchmaking-failed | Matchmaking | Cab Service | No driver available |
 | assignment-accepted | Cab Service | Matchmaking | Driver accepted (from /dispatch/driver-response) |
 | assignment-rejected | Cab Service | Matchmaking | Driver rejected → retry |
+| driver-location-events | Location Service | Realtime Gateway | Driver location updates for rider tracking |
+| assignment-requested | Matchmaking Service | Realtime Gateway | Driver assignment notifications |
 
 Legacy/Other:
 * user.created

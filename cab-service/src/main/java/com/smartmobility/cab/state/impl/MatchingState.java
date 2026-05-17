@@ -10,8 +10,8 @@ public class MatchingState implements RideState {
         throw new InvalidStateTransitionException("Already matching");
     }
 
-    public void assignDriver(RideEntity ride, Long driverId) {
-        ride.setDriverId(driverId);
+    public void assignDriver(RideEntity ride, Long driverUserId) {
+        ride.setDriverUserId(driverUserId);
         ride.setStatus(RideStatus.DRIVER_ASSIGNED);
     }
 

@@ -13,5 +13,5 @@ public class DriverAssignedEvent {
 
     private String eventId;   // for reliability
     private UUID rideId;
-    private Long driverId;
+    private Long driverUserId;
 }

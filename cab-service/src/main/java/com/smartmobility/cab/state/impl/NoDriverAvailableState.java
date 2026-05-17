@@ -20,7 +20,7 @@ public class NoDriverAvailableState implements RideState {
     }
 
     @Override
-    public void assignDriver(RideEntity ride, Long driverId) {
+    public void assignDriver(RideEntity ride, Long driverUserId) {
         throw new InvalidStateTransitionException("Cannot assign driver - no driver available");
     }
 

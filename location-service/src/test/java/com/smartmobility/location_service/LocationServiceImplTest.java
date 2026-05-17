@@ -19,12 +19,12 @@ class LocationServiceImplTest {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
         LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
 
-        locationService.goOnline("42", 28.7041, 77.1025);
+        locationService.goOnline(42L, 28.7041, 77.1025);
 
-        assertEquals("42", locationRepository.lastUpsertDriverId);
+        assertEquals("42", locationRepository.lastUpsertDriverUserId);
         assertEquals(28.7041, locationRepository.lastLat);
         assertEquals(77.1025, locationRepository.lastLng);
-        assertEquals("42", locationRepository.lastOnlineDriverId);
+        assertEquals("42", locationRepository.lastOnlineDriverUserId);
     }
 
     @Test
@@ -43,22 +43,22 @@ class LocationServiceImplTest {
         locationRepository.nearbyDrivers = List.of("42", "43");
         LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
 
-        List<String> result = locationService.getNearbyDrivers(28.7041, 77.1025, 5.0, 10);
+        List<Long> result = locationService.getNearbyDrivers(28.7041, 77.1025, 5.0, 10);
 
-        assertEquals(List.of("42", "43"), result);
+        assertEquals(List.of(42L, 43L), result);
     }
 
     @Test
     void getNearbyDrivers_returnsOnlyFromAvailableGeo() {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
-        locationRepository.nearbyDrivers = List.of("driver1", "driver2");
+        locationRepository.nearbyDrivers = List.of("42", "43");
         LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
 
-        List<String> result = locationService.getNearbyDrivers(40.7128, -74.0060, 5.0, 10);
+        List<Long> result = locationService.getNearbyDrivers(40.7128, -74.0060, 5.0, 10);
 
         assertEquals(2, result.size());
-        assertTrue(result.contains("driver1"));
-        assertTrue(result.contains("driver2"));
+        assertTrue(result.contains(42L));
+        assertTrue(result.contains(43L));
     }
 
     @Test
@@ -69,36 +69,36 @@ class LocationServiceImplTest {
 
         assertThrows(
                 LocationServiceException.class,
-                () -> locationService.updateDriverLocation("42", 28.7041, 77.1025)
+                () -> locationService.updateDriverLocation(42L, 28.7041, 77.1025)
         );
     }
 
     private static class FakeLocationRepository implements LocationRepository {
 
-        private String lastUpsertDriverId;
+        private String lastUpsertDriverUserId;
         private double lastLat;
         private double lastLng;
-        private String lastOnlineDriverId;
+        private String lastOnlineDriverUserId;
         private boolean failUpsert;
         private List<String> nearbyDrivers = List.of();
 
         @Override
-        public void upsertDriverLocation(String driverId, double lat, double lng) {
+        public void upsertDriverLocation(String driverUserId, double lat, double lng) {
             if (failUpsert) {
                 throw new RuntimeException("redis unavailable");
             }
-            this.lastUpsertDriverId = driverId;
+            this.lastUpsertDriverUserId = driverUserId;
             this.lastLat = lat;
             this.lastLng = lng;
         }
 
         @Override
-        public void markDriverOnline(String driverId) {
-            this.lastOnlineDriverId = driverId;
+        public void markDriverOnline(String driverUserId) {
+            this.lastOnlineDriverUserId = driverUserId;
         }
 
         @Override
-        public void markDriverOffline(String driverId) {
+        public void markDriverOffline(String driverUserId) {
         }
 
         @Override

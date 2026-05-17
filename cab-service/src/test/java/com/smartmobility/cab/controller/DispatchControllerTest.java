@@ -1,16 +1,16 @@
 package com.smartmobility.cab.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmobility.cab.dto.CancelDispatchRequest;
 import com.smartmobility.cab.dto.DispatchStatusResponse;
 import com.smartmobility.cab.dto.DriverResponseRequest;
 import com.smartmobility.cab.service.DispatchService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -30,20 +30,20 @@ class DispatchControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private DispatchService dispatchService;
 
     @Test
     void handleDriverResponse_Accept_ReturnsSuccess() throws Exception {
         UUID dispatchId = UUID.randomUUID();
-        Long driverId = 1L;
+        Long driverUserId = 1L;
 
         DriverResponseRequest request = new DriverResponseRequest();
         request.setDispatchId(dispatchId);
-        request.setDriverId(driverId);
+        request.setDriverUserId(driverUserId);
         request.setResponse(DriverResponseRequest.DriverResponse.ACCEPT);
 
-        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverId), eq(true));
+        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(true));
 
         mockMvc.perform(post("/dispatch/driver-response")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,14 +56,14 @@ class DispatchControllerTest {
     @Test
     void handleDriverResponse_Reject_ReturnsSuccess() throws Exception {
         UUID dispatchId = UUID.randomUUID();
-        Long driverId = 1L;
+        Long driverUserId = 1L;
 
         DriverResponseRequest request = new DriverResponseRequest();
         request.setDispatchId(dispatchId);
-        request.setDriverId(driverId);
+        request.setDriverUserId(driverUserId);
         request.setResponse(DriverResponseRequest.DriverResponse.REJECT);
 
-        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverId), eq(false));
+        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(false));
 
         mockMvc.perform(post("/dispatch/driver-response")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -76,7 +76,7 @@ class DispatchControllerTest {
     @Test
     void handleDriverResponse_MissingDispatchId_ReturnsBadRequest() throws Exception {
         DriverResponseRequest request = new DriverResponseRequest();
-        request.setDriverId(1L);
+        request.setDriverUserId(1L);
         request.setResponse(DriverResponseRequest.DriverResponse.ACCEPT);
 
         mockMvc.perform(post("/dispatch/driver-response")
@@ -112,7 +112,7 @@ class DispatchControllerTest {
                 .dispatchId(dispatchId)
                 .rideId(rideId)
                 .status("ASSIGNMENT_SENT")
-                .driverId(1L)
+                .driverUserId(1L)
                 .retryCount(0)
                 .build();
 
@@ -122,7 +122,7 @@ class DispatchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("ASSIGNMENT_SENT"))
-                .andExpect(jsonPath("$.data.driverId").value(1));
+                .andExpect(jsonPath("$.data.driverUserId").value(1));
     }
 
     @Test

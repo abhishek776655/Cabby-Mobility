@@ -49,7 +49,7 @@ public class RideServiceImpl implements RideService {
                 RideRequestedEvent.builder()
                         .eventId(UUID.randomUUID().toString())
                         .rideId(savedRide.getId())
-                        .riderId(savedRide.getRiderId())
+                        .riderUserId(savedRide.getRiderUserId())
                         .pickupLocation(savedRide.getPickupLocation())
                         .dropLocation(savedRide.getDropLocation())
                         .pickupLatitude(savedRide.getPickupLatitude())
@@ -141,7 +141,7 @@ public class RideServiceImpl implements RideService {
     }
 
     @Transactional
-    public void handleDriverAssignedEvent(String eventId, UUID rideId, Long driverId) {
+    public void handleDriverAssignedEvent(String eventId, UUID rideId, Long driverUserId) {
 
         // 1. Idempotency check
         if (processedEventRepository.existsById(eventId)) {
@@ -154,7 +154,7 @@ public class RideServiceImpl implements RideService {
 
         // 3. Apply state transition
         RideState state = rideStateFactory.getState(ride.getStatus());
-        state.assignDriver(ride, driverId);
+        state.assignDriver(ride, driverUserId);
 
         rideRepository.save(ride);
 

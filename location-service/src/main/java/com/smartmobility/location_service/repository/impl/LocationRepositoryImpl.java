@@ -23,29 +23,29 @@ public class LocationRepositoryImpl implements LocationRepository {
 
     // 1️⃣ Upsert location
     @Override
-    public void upsertDriverLocation(String driverId, double lat, double lng) {
+    public void upsertDriverLocation(String driverUserId, double lat, double lng) {
         Point point = new Point(lng, lat);
-        geoOps.add(RedisKeys.DRIVERS_GEO, point, driverId);
-        if (Boolean.TRUE.equals(setOps.isMember(RedisKeys.DRIVERS_AVAILABLE, driverId))) {
-            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, point, driverId);
+        geoOps.add(RedisKeys.DRIVERS_GEO, point, driverUserId);
+        if (Boolean.TRUE.equals(setOps.isMember(RedisKeys.DRIVERS_AVAILABLE, driverUserId))) {
+            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, point, driverUserId);
         }
     }
 
     // 2️⃣ Mark ONLINE
     @Override
-    public void markDriverOnline(String driverId) {
-        setOps.add(RedisKeys.DRIVERS_AVAILABLE, driverId);
-        List<Point> points = geoOps.position(RedisKeys.DRIVERS_GEO, driverId);
+    public void markDriverOnline(String driverUserId) {
+        setOps.add(RedisKeys.DRIVERS_AVAILABLE, driverUserId);
+        List<Point> points = geoOps.position(RedisKeys.DRIVERS_GEO, driverUserId);
         if (points != null && !points.isEmpty()) {
-            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, points.get(0), driverId);
+            availableGeoOps.add(RedisKeys.DRIVERS_AVAILABLE_GEO, points.get(0), driverUserId);
         }
     }
 
     // 3️⃣ Mark OFFLINE
     @Override
-    public void markDriverOffline(String driverId) {
-        setOps.remove(RedisKeys.DRIVERS_AVAILABLE, driverId);
-        availableGeoOps.remove(RedisKeys.DRIVERS_AVAILABLE_GEO, driverId);
+    public void markDriverOffline(String driverUserId) {
+        setOps.remove(RedisKeys.DRIVERS_AVAILABLE, driverUserId);
+        availableGeoOps.remove(RedisKeys.DRIVERS_AVAILABLE_GEO, driverUserId);
     }
 
     // 4️⃣ Find nearby drivers

@@ -23,7 +23,7 @@ public class DriverAssignedConsumer {
         rideService.handleDriverAssignedEvent(
                 event.getEventId(),
                 event.getRideId(),
-                event.getDriverId()
+                event.getDriverUserId()
         );
     }
 }

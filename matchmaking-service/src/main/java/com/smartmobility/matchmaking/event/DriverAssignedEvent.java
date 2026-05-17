@@ -15,6 +15,6 @@ import java.util.UUID;
 public class DriverAssignedEvent {
     private String eventId;
     private UUID rideId;
-    private Long driverId;
+    private Long driverUserId;
     private LocalDateTime assignedAt;
 }

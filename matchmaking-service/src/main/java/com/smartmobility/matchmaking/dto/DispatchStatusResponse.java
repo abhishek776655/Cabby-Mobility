@@ -9,7 +9,7 @@ public class DispatchStatusResponse {
     private UUID dispatchId;
     private UUID rideId;
     private DispatchStatus status;
-    private Long driverId;
+    private Long driverUserId;
     private Integer retryCount;
     private Instant createdAt;
     private Instant expiresAt;
@@ -20,8 +20,8 @@ public class DispatchStatusResponse {
     public void setRideId(UUID rideId) { this.rideId = rideId; }
     public DispatchStatus getStatus() { return status; }
     public void setStatus(DispatchStatus status) { this.status = status; }
-    public Long getDriverId() { return driverId; }
-    public void setDriverId(Long driverId) { this.driverId = driverId; }
+    public Long getDriverUserId() { return driverUserId; }
+    public void setDriverUserId(Long driverUserId) { this.driverUserId = driverUserId; }
     public Integer getRetryCount() { return retryCount; }
     public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
     public Instant getCreatedAt() { return createdAt; }

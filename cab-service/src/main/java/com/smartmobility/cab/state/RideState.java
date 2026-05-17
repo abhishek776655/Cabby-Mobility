@@ -6,7 +6,7 @@ public interface RideState {
 
     void match(RideEntity ride);
 
-    void assignDriver(RideEntity ride, Long driverId);
+    void assignDriver(RideEntity ride, Long driverUserId);
 
     void start(RideEntity ride);
 

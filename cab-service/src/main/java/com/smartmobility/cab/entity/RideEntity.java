@@ -18,10 +18,11 @@ public class RideEntity {
     @GeneratedValue
     private UUID id;
 
-    @Column(nullable = false)
-    private UUID riderId;
+    @Column(name = "rider_id", nullable = false)
+    private Long riderUserId;
 
-    private Long driverId;
+    @Column(name = "driver_id")
+    private Long driverUserId;
 
     @Column(nullable = false)
     private String pickupLocation;

@@ -24,7 +24,8 @@ public class AssignmentAttempt {
     @Column(nullable = false)
     private UUID rideId;
 
-    private Long driverId;
+    @Column(name = "driver_id")
+    private Long driverUserId;
 
     private Double score;
 

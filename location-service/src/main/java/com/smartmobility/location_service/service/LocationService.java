@@ -4,11 +4,11 @@ import java.util.List;
 
 public interface LocationService {
 
-    void goOnline(String driverId, double lat, double lng);
+    void goOnline(Long driverUserId, double lat, double lng);
 
-    void goOffline(String driverId);
+    void goOffline(Long driverUserId);
 
-    void updateDriverLocation(String driverId, double lat, double lng);
+    void updateDriverLocation(Long driverUserId, double lat, double lng);
 
-    List<String> getNearbyDrivers(double lat, double lng, double radiusKm, int limit);
+    List<Long> getNearbyDrivers(double lat, double lng, double radiusKm, int limit);
 }

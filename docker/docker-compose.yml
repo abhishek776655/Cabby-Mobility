@@ -4,22 +4,17 @@ services:
   postgres:
     image: postgres:15
     container_name: smartmobility-postgres
-
+    env_file:
+      - ../.env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: postgres
-
     ports:
       - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
-  # ----------------------------
-  # Kafka
-  # ----------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -40,28 +35,12 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
-      # Internal & External listeners
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    depends_on:
-      - kafka
-    ports:
-      - "8085:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-  # ----------------------------
-  # Redis
-  # ----------------------------
   redis:
     image: redis:7.2
     container_name: redis
@@ -71,18 +50,181 @@ services:
     volumes:
       - redis-data:/data
 
-  # ----------------------------
-  # Redis Insight UI
-  # ----------------------------
-  redis-insight:
-    image: redis/redisinsight:latest
-    container_name: redis-insight
+  eureka-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: eureka-service
+    working_dir: /app
+    volumes:
+      - ../eureka-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
     ports:
-      - "8001:8001"
+      - "${EUREKA_SERVICE_PORT}:8761"
+    env_file:
+      - ../.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  auth-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: auth-service
+    working_dir: /app
+    volumes:
+      - ../auth-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${AUTH_SERVICE_PORT}:8091"
     depends_on:
-      - redis
+      eureka-service:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  user-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: user-service
+    working_dir: /app
+    volumes:
+      - ../user-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${USER_SERVICE_PORT}:8081"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  driver-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: driver-service
+    working_dir: /app
+    volumes:
+      - ../driver-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${DRIVER_SERVICE_PORT}:8084"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  cab-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: cab-service
+    working_dir: /app
+    volumes:
+      - ../cab-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${CAB_SERVICE_PORT}:8089"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  location-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: location-service
+    working_dir: /app
+    volumes:
+      - ../location-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${LOCATION_SERVICE_PORT}:8090"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  matchmaking-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: matchmaking-service
+    working_dir: /app
+    volumes:
+      - ../matchmaking-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${MATCHMAKING_SERVICE_PORT}:8087"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  gateway-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: gateway-service
+    working_dir: /app
+    volumes:
+      - ../gateway-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${GATEWAY_SERVICE_PORT}:8080"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ../.env
+
+  realtime-gateway-service:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: realtime-gateway-service
+    working_dir: /app
+    volumes:
+      - ../realtime-gateway-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    ports:
+      - "${REALTIME_GATEWAY_SERVICE_PORT}:8095"
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    env_file:
+      - ../.env
 
 volumes:
   kafka-data:
   redis-data:
   postgres_data:
+  maven-cache:

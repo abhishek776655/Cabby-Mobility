@@ -37,32 +37,32 @@ class DispatchServiceImplTest {
     @Test
     void handleDriverResponse_Accepted_PublishesToAcceptedTopic() {
         UUID dispatchId = UUID.randomUUID();
-        Long driverId = 1L;
+        Long driverUserId = 1L;
 
-        dispatchService.handleDriverResponse(dispatchId, driverId, true);
+        dispatchService.handleDriverResponse(dispatchId, driverUserId, true);
 
         ArgumentCaptor<DriverResponseEvent> eventCaptor = ArgumentCaptor.forClass(DriverResponseEvent.class);
         verify(eventProducer).publishDriverResponse(eventCaptor.capture());
 
         DriverResponseEvent capturedEvent = eventCaptor.getValue();
         assertEquals(dispatchId, capturedEvent.getDispatchId());
-        assertEquals(driverId, capturedEvent.getDriverId());
+        assertEquals(driverUserId, capturedEvent.getDriverUserId());
         assertTrue(capturedEvent.isAccepted());
     }
 
     @Test
     void handleDriverResponse_Rejected_PublishesToRejectedTopic() {
         UUID dispatchId = UUID.randomUUID();
-        Long driverId = 1L;
+        Long driverUserId = 1L;
 
-        dispatchService.handleDriverResponse(dispatchId, driverId, false);
+        dispatchService.handleDriverResponse(dispatchId, driverUserId, false);
 
         ArgumentCaptor<DriverResponseEvent> eventCaptor = ArgumentCaptor.forClass(DriverResponseEvent.class);
         verify(eventProducer).publishDriverResponse(eventCaptor.capture());
 
         DriverResponseEvent capturedEvent = eventCaptor.getValue();
         assertEquals(dispatchId, capturedEvent.getDispatchId());
-        assertEquals(driverId, capturedEvent.getDriverId());
+        assertEquals(driverUserId, capturedEvent.getDriverUserId());
         assertFalse(capturedEvent.isAccepted());
     }
 
@@ -82,7 +82,7 @@ class DispatchServiceImplTest {
                 .dispatchId(UUID.randomUUID())
                 .rideId(rideId)
                 .status("ASSIGNED")
-                .driverId(1L)
+                .driverUserId(1L)
                 .build();
 
         when(matchmakingClient.getDispatchStatus(rideId)).thenReturn(expectedResponse);
@@ -91,7 +91,7 @@ class DispatchServiceImplTest {
 
         assertTrue(result.isPresent());
         assertEquals("ASSIGNED", result.get().getStatus());
-        assertEquals(1L, result.get().getDriverId());
+        assertEquals(1L, result.get().getDriverUserId());
     }
 
     @Test

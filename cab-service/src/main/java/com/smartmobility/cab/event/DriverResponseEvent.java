@@ -14,7 +14,7 @@ public class DriverResponseEvent {
     private String eventId;
     private UUID dispatchId;
     private UUID rideId;
-    private Long driverId;
+    private Long driverUserId;
     private boolean accepted;
     private String responseAt;
 }

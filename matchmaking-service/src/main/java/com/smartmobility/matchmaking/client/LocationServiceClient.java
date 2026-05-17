@@ -28,18 +28,16 @@ public class LocationServiceClient {
                 .limit(limit)
                 .build();
 
-        ApiResponse<List<String>> response = restClient.post()
+        ApiResponse<List<Long>> response = restClient.post()
                 .uri("/location/nearby")
                 .body(request)
                 .retrieve()
-                .body(new ParameterizedTypeReference<ApiResponse<List<String>>>() {});
+                .body(new ParameterizedTypeReference<ApiResponse<List<Long>>>() {});
 
         if (response == null || response.getData() == null) {
             return List.of();
         }
 
-        return response.getData().stream()
-                .map(Long::valueOf)
-                .toList();
+        return response.getData();
     }
 }

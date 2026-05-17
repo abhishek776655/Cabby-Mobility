@@ -10,7 +10,7 @@ public class RideMapper {
 
     public static RideEntity toEntity(RideRequestDTO request) {
         return RideEntity.builder()
-                .riderId(request.getRiderId())
+                .riderUserId(request.getRiderUserId())
                 .pickupLocation(request.getPickupLocation())
                 .dropLocation(request.getDropLocation())
                 .pickupLatitude(request.getPickupLatitude())
@@ -24,8 +24,8 @@ public class RideMapper {
     public static RideResponseDTO toResponseDTO(RideEntity ride) {
         return RideResponseDTO.builder()
                 .rideId(ride.getId())
-                .riderId(ride.getRiderId())
-                .driverId(ride.getDriverId())
+                .riderUserId(ride.getRiderUserId())
+                .driverUserId(ride.getDriverUserId())
                 .pickupLocation(ride.getPickupLocation())
                 .dropLocation(ride.getDropLocation())
                 .pickupLatitude(ride.getPickupLatitude())

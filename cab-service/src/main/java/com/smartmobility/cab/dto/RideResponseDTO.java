@@ -13,8 +13,8 @@ import java.util.UUID;
 public class RideResponseDTO {
 
     private UUID rideId;
-    private UUID riderId;
-    private Long driverId;
+    private Long riderUserId;
+    private Long driverUserId;
 
     private String pickupLocation;
     private String dropLocation;

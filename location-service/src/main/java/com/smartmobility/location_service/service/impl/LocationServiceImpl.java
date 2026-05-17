@@ -19,56 +19,59 @@ public class LocationServiceImpl implements LocationService {
     private final LocationRepository locationRepository;
 
     @Override
-    public void goOnline(String driverId, double lat, double lng) {
-        validateDriverId(driverId);
+    public void goOnline(Long driverUserId, double lat, double lng) {
+        validateDriverUserId(driverUserId);
         validateCoordinates(lat, lng);
 
         try {
-            locationRepository.upsertDriverLocation(driverId, lat, lng);
-            locationRepository.markDriverOnline(driverId);
+            String driverUserIdKey = driverUserId.toString();
+            locationRepository.upsertDriverLocation(driverUserIdKey, lat, lng);
+            locationRepository.markDriverOnline(driverUserIdKey);
         } catch (RuntimeException ex) {
             throw new LocationServiceException("Failed to mark driver online", ex);
         }
     }
 
     @Override
-    public void goOffline(String driverId) {
-        validateDriverId(driverId);
+    public void goOffline(Long driverUserId) {
+        validateDriverUserId(driverUserId);
 
         try {
-            locationRepository.markDriverOffline(driverId);
+            locationRepository.markDriverOffline(driverUserId.toString());
         } catch (RuntimeException ex) {
             throw new LocationServiceException("Failed to mark driver offline", ex);
         }
     }
 
     @Override
-    public void updateDriverLocation(String driverId, double lat, double lng) {
-        validateDriverId(driverId);
+    public void updateDriverLocation(Long driverUserId, double lat, double lng) {
+        validateDriverUserId(driverUserId);
         validateCoordinates(lat, lng);
 
         try {
-            locationRepository.upsertDriverLocation(driverId, lat, lng);
+            locationRepository.upsertDriverLocation(driverUserId.toString(), lat, lng);
         } catch (RuntimeException ex) {
             throw new LocationServiceException("Failed to update driver location", ex);
         }
     }
 
     @Override
-    public List<String> getNearbyDrivers(double lat, double lng, double radiusKm, int limit) {
+    public List<Long> getNearbyDrivers(double lat, double lng, double radiusKm, int limit) {
         validateCoordinates(lat, lng);
         validateSearch(radiusKm, limit);
 
         try {
-            return locationRepository.findNearbyDrivers(lat, lng, radiusKm, limit);
+            return locationRepository.findNearbyDrivers(lat, lng, radiusKm, limit).stream()
+                    .map(Long::valueOf)
+                    .toList();
         } catch (RuntimeException ex) {
             throw new LocationServiceException("Failed to find nearby drivers", ex);
         }
     }
 
-    private void validateDriverId(String driverId) {
-        if (driverId == null || driverId.isBlank()) {
-            throw new InvalidLocationException("driverId is required");
+    private void validateDriverUserId(Long driverUserId) {
+        if (driverUserId == null) {
+            throw new InvalidLocationException("driverUserId is required");
         }
     }
 

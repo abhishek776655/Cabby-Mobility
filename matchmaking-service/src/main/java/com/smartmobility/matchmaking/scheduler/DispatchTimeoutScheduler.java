@@ -29,13 +29,13 @@ public class DispatchTimeoutScheduler {
 
         for (DispatchSessionEntity session : expiredSessions) {
             if (session.getStatus() == DispatchStatus.ASSIGNMENT_SENT &&
-                session.getCurrentDriverId() != null) {
+                session.getCurrentDriverUserId() != null) {
 
                 log.info("Handling timeout for dispatch {} driver {}",
-                    session.getDispatchId(), session.getCurrentDriverId());
+                    session.getDispatchId(), session.getCurrentDriverUserId());
 
                 reservationService.releaseReservation(
-                    session.getCurrentDriverId(),
+                    session.getCurrentDriverUserId(),
                     session.getDispatchId().toString());
 
                 session.setStatus(DispatchStatus.RETRYING);

@@ -13,7 +13,7 @@ public class RideRequestedEvent {
 
     private String eventId;   //  important for reliability
     private UUID rideId;
-    private UUID riderId;
+    private Long riderUserId;
 
     private String pickupLocation;
     private String dropLocation;

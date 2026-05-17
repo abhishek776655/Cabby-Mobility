@@ -11,7 +11,7 @@ public class DriverAssignedState implements RideState {
         throw new InvalidStateTransitionException("Already matched");
     }
 
-    public void assignDriver(RideEntity ride, Long driverId) {
+    public void assignDriver(RideEntity ride, Long driverUserId) {
         throw new InvalidStateTransitionException("Driver already assigned");
     }
 

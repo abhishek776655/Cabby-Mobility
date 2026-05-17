@@ -22,6 +22,9 @@ public class RideEventProducer {
 
     public void publishDriverResponse(DriverResponseEvent event) {
         String topic = event.isAccepted() ? ASSIGNMENT_ACCEPTED_TOPIC : ASSIGNMENT_REJECTED_TOPIC;
-        kafkaTemplate.send(topic, event.getRideId().toString(), event);
+        String key = event.getRideId() != null
+                ? event.getRideId().toString()
+                : event.getDispatchId().toString();
+        kafkaTemplate.send(topic, key, event);
     }
 }

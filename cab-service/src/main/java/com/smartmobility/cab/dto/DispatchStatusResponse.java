@@ -17,7 +17,7 @@ public class DispatchStatusResponse {
     private UUID dispatchId;
     private UUID rideId;
     private String status;
-    private Long driverId;
+    private Long driverUserId;
     private int retryCount;
     private Instant createdAt;
     private Instant expiresAt;

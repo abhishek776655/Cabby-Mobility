@@ -10,7 +10,7 @@ public class RequestedState implements RideState {
         ride.setStatus(RideStatus.MATCHING);
     }
 
-    public void assignDriver(RideEntity ride, Long driverId) {
+    public void assignDriver(RideEntity ride, Long driverUserId) {
         throw new InvalidStateTransitionException("Cannot assign driver in REQUESTED state");
     }
 

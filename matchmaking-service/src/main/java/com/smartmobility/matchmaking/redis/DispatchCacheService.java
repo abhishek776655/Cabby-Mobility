@@ -17,11 +17,11 @@ public class DispatchCacheService {
     private final StringRedisTemplate redisTemplate;
     private static final String DISPATCH_KEY_PREFIX = "dispatch:%s";
 
-    public void saveDispatchState(String dispatchId, String status, Long driverId, long expiresAtEpoch) {
+    public void saveDispatchState(String dispatchId, String status, Long driverUserId, long expiresAtEpoch) {
         String key = String.format(DISPATCH_KEY_PREFIX, dispatchId);
         Map<String, String> values = Map.of(
             "status", status,
-            "driverId", driverId != null ? driverId.toString() : "",
+            "driverUserId", driverUserId != null ? driverUserId.toString() : "",
             "expiresAt", String.valueOf(expiresAtEpoch)
         );
         redisTemplate.opsForHash().putAll(key, values);

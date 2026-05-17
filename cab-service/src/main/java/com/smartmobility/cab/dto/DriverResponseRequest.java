@@ -16,7 +16,7 @@ public class DriverResponseRequest {
     private UUID dispatchId;
 
     @NotNull(message = "Driver ID is required")
-    private Long driverId;
+    private Long driverUserId;
 
     @NotNull(message = "Response is required")
     private DriverResponse response;

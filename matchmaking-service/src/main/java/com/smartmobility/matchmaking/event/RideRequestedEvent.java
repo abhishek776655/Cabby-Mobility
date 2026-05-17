@@ -14,7 +14,7 @@ import java.util.UUID;
 public class RideRequestedEvent {
     private String eventId;
     private UUID rideId;
-    private UUID riderId;
+    private Long riderUserId;
     private String pickupLocation;
     private String dropLocation;
     private Double pickupLatitude;

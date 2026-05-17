@@ -9,7 +9,7 @@ public class DriverResponseRequest {
     private UUID dispatchId;
 
     @NotNull
-    private Long driverId;
+    private Long driverUserId;
 
     @NotNull
     private DriverResponse response;
@@ -20,8 +20,8 @@ public class DriverResponseRequest {
 
     public UUID getDispatchId() { return dispatchId; }
     public void setDispatchId(UUID dispatchId) { this.dispatchId = dispatchId; }
-    public Long getDriverId() { return driverId; }
-    public void setDriverId(Long driverId) { this.driverId = driverId; }
+    public Long getDriverUserId() { return driverUserId; }
+    public void setDriverUserId(Long driverUserId) { this.driverUserId = driverUserId; }
     public DriverResponse getResponse() { return response; }
     public void setResponse(DriverResponse response) { this.response = response; }
 }

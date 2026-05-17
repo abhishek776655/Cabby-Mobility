@@ -7,8 +7,8 @@ import lombok.Data;
 @Data
 public class UpdateLocationRequest {
 
-    @NotBlank
-    private String driverId;
+    @NotNull
+    private Long driverUserId;
 
     @DecimalMin(value = "-90.0")
     @DecimalMax(value = "90.0")

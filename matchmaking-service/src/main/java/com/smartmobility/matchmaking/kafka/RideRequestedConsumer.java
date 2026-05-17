@@ -1,12 +1,12 @@
 package com.smartmobility.matchmaking.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmobility.matchmaking.event.RideRequestedEvent;
 import com.smartmobility.matchmaking.service.MatchmakingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component

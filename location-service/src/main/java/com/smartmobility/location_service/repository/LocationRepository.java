@@ -4,11 +4,11 @@ import java.util.List;
 
 public interface LocationRepository {
 
-    void upsertDriverLocation(String driverId, double lat, double lng);
+    void upsertDriverLocation(String driverUserId, double lat, double lng);
 
-    void markDriverOnline(String driverId);
+    void markDriverOnline(String driverUserId);
 
-    void markDriverOffline(String driverId);
+    void markDriverOffline(String driverUserId);
 
     List<String> findNearbyDrivers(double lat, double lng, double radiusKm, int limit);
 }

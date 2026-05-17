@@ -4,8 +4,6 @@ package com.smartmobility.cab.dto;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-import java.util.UUID;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,7 +12,7 @@ import java.util.UUID;
 public class RideRequestDTO {
 
     @NotNull
-    private UUID riderId;
+    private Long riderUserId;
 
     @NotNull
     private String pickupLocation;

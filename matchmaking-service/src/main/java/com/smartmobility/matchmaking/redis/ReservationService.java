@@ -19,20 +19,20 @@ public class ReservationService {
 
     private static final String RESERVATION_KEY_PREFIX = "driver:%s:reservation";
 
-    public boolean acquireReservation(Long driverId, String dispatchId, String rideId) {
-        String key = String.format(RESERVATION_KEY_PREFIX, driverId);
+    public boolean acquireReservation(Long driverUserId, String dispatchId, String rideId) {
+        String key = String.format(RESERVATION_KEY_PREFIX, driverUserId);
         String value = dispatchId + ":" + rideId;
         int ttlSeconds = properties.getReservation().getTtlSeconds();
 
         Boolean result = redisTemplate.opsForValue()
             .setIfAbsent(key, value, Duration.ofSeconds(ttlSeconds));
 
-        log.info("Reservation attempt for driver {}: {}", driverId, result);
+        log.info("Reservation attempt for driver {}: {}", driverUserId, result);
         return Boolean.TRUE.equals(result);
     }
 
-    public boolean releaseReservation(Long driverId, String dispatchId) {
-        String key = String.format(RESERVATION_KEY_PREFIX, driverId);
+    public boolean releaseReservation(Long driverUserId, String dispatchId) {
+        String key = String.format(RESERVATION_KEY_PREFIX, driverUserId);
         String currentValue = redisTemplate.opsForValue().get(key);
 
         if (currentValue == null) {
@@ -41,18 +41,18 @@ public class ReservationService {
 
         if (currentValue.startsWith(dispatchId + ":")) {
             Boolean deleted = redisTemplate.delete(key);
-            log.info("Released reservation for driver {}: {}", driverId, deleted);
+            log.info("Released reservation for driver {}: {}", driverUserId, deleted);
             return Boolean.TRUE.equals(deleted);
         }
         return false;
     }
 
-    public Optional<String> getReservation(Long driverId) {
-        String key = String.format(RESERVATION_KEY_PREFIX, driverId);
+    public Optional<String> getReservation(Long driverUserId) {
+        String key = String.format(RESERVATION_KEY_PREFIX, driverUserId);
         return Optional.ofNullable(redisTemplate.opsForValue().get(key));
     }
 
-    public boolean hasActiveReservation(Long driverId) {
-        return getReservation(driverId).isPresent();
+    public boolean hasActiveReservation(Long driverUserId) {
+        return getReservation(driverUserId).isPresent();
     }
 }

@@ -107,7 +107,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             DriverAssignedEvent assignedEvent = DriverAssignedEvent.builder()
                     .eventId(event.getEventId() + "-assigned")
                     .rideId(event.getRideId())
-                    .driverId(driver.getUserId())
+                    .driverUserId(driver.getUserId())
                     .assignedAt(LocalDateTime.now())
                     .build();
 

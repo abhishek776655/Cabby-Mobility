@@ -3,7 +3,7 @@
 CREATE TABLE dispatch_sessions (
     dispatch_id UUID PRIMARY KEY,
     ride_id UUID NOT NULL,
-    rider_id UUID NOT NULL,
+    rider_id BIGINT NOT NULL,
     status VARCHAR(50) NOT NULL,
     current_driver_id BIGINT,
     remaining_candidates TEXT,

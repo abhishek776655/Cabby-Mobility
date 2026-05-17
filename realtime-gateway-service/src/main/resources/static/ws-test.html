@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Realtime Gateway Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f7f8fa; color: #1f2937; }
+        main { max-width: 960px; margin: 0 auto; }
+        section { background: white; border: 1px solid #d8dee9; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        label { display: block; font-weight: 700; margin: 12px 0 6px; }
+        input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #b8c0cc; border-radius: 6px; }
+        button { margin-top: 12px; margin-right: 8px; padding: 10px 14px; border: 0; border-radius: 6px; background: #2563eb; color: white; cursor: pointer; }
+        button.secondary { background: #475569; }
+        pre { background: #111827; color: #e5e7eb; padding: 16px; min-height: 220px; overflow: auto; border-radius: 8px; }
+        .status { font-weight: 700; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Realtime Gateway Test Client</h1>
+
+    <section>
+        <div>Status: <span id="status" class="status">disconnected</span></div>
+        <button onclick="connect()">Connect</button>
+        <button class="secondary" onclick="disconnect()">Disconnect</button>
+    </section>
+
+    <section>
+        <label for="rideId">Ride ID</label>
+        <input id="rideId" value="ride_123">
+        <button onclick="subscribeTrip()">Subscribe Rider Trip</button>
+
+        <label for="driverUserId">Driver ID</label>
+        <input id="driverUserId" value="1">
+        <button onclick="subscribeDriver()">Subscribe Driver Assignments</button>
+    </section>
+
+    <section>
+        <h2>Messages</h2>
+        <pre id="messages"></pre>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+<script>
+    let client;
+
+    function log(message) {
+        const output = document.getElementById('messages');
+        output.textContent += `[${new Date().toISOString()}] ${message}\n`;
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function setStatus(value) {
+        document.getElementById('status').textContent = value;
+    }
+
+    function connect() {
+        client = new StompJs.Client({
+            webSocketFactory: () => new SockJS('/ws'),
+            reconnectDelay: 0,
+            onConnect: () => {
+                setStatus('connected');
+                log('Connected to /ws');
+            },
+            onStompError: frame => log(`Broker error: ${frame.headers.message}`),
+            onWebSocketClose: () => setStatus('disconnected')
+        });
+        client.activate();
+    }
+
+    function disconnect() {
+        if (client) {
+            client.deactivate();
+            log('Disconnected');
+        }
+    }
+
+    function subscribeTrip() {
+        const rideId = document.getElementById('rideId').value.trim();
+        const destination = `/topic/trip/${rideId}`;
+        client.subscribe(destination, message => log(`${destination}: ${message.body}`));
+        log(`Subscribed to ${destination}`);
+    }
+
+    function subscribeDriver() {
+        const driverUserId = document.getElementById('driverUserId').value.trim();
+        const destination = `/topic/driver/${driverUserId}`;
+        client.subscribe(destination, message => log(`${destination}: ${message.body}`));
+        log(`Subscribed to ${destination}`);
+    }
+</script>
+</body>
+</html>

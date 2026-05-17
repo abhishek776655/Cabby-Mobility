@@ -25,7 +25,7 @@ public class LocationController {
             @Valid @RequestBody UpdateLocationRequest request) {
 
         locationService.goOnline(
-                request.getDriverId(),
+                request.getDriverUserId(),
                 request.getLat(),
                 request.getLng()
         );
@@ -36,9 +36,9 @@ public class LocationController {
     // 2️⃣ Driver goes OFFLINE
     @PostMapping("/driver/offline")
     public ResponseEntity<ApiResponse<Void>> goOffline(
-            @RequestParam String driverId) {
+            @RequestParam Long driverUserId) {
 
-        locationService.goOffline(driverId);
+        locationService.goOffline(driverUserId);
 
         return ResponseEntity.ok(ApiResponseBuilder.success(null, "Driver is offline"));
     }
@@ -49,7 +49,7 @@ public class LocationController {
             @Valid @RequestBody UpdateLocationRequest request) {
 
         locationService.updateDriverLocation(
-                request.getDriverId(),
+                request.getDriverUserId(),
                 request.getLat(),
                 request.getLng()
         );
@@ -59,10 +59,10 @@ public class LocationController {
 
     // 4️⃣ Nearby drivers (for matchmaking)
     @PostMapping("/nearby")
-    public ResponseEntity<ApiResponse<List<String>>> getNearbyDrivers(
+    public ResponseEntity<ApiResponse<List<Long>>> getNearbyDrivers(
             @Valid @RequestBody NearbyDriversRequest request) {
 
-        List<String> drivers = locationService.getNearbyDrivers(
+        List<Long> drivers = locationService.getNearbyDrivers(
                 request.getLat(),
                 request.getLng(),
                 request.getRadiusKm(),
