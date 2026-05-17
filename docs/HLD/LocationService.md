@@ -1,5 +1,10 @@
 # 📍 LOCATION SERVICE — HLD + LLD (Smart Mobility)
 
+## Service Configuration
+
+* **Port:** 8086
+* **Data Store:** Redis (GEO + SET)
+* **Clients:** Matchmaking Service, Driver Service
 
 
 # 🏗️ High Level Design (HLD)
@@ -92,15 +97,19 @@ Return driverIds
 
 * GEO index → driver locations
 * SET → available drivers
+* Available GEO → online driver locations (optimized)
 
 ---
 
-### Key Structure
+### Key Structure (v2 Optimized)
 
 ```
-drivers:geo        → GEO (driverId → lat/lng)
-drivers:available  → SET (online drivers)
+drivers:geo              → GEO (driverId → lat/lng) - ALL drivers
+drivers:available        → SET (online drivers) - for quick check
+drivers:available:geo    → GEO (driverId → lat/lng) - ONLINE drivers only
 ```
+
+**v2 Optimization:** The `drivers:available:geo` key stores only online drivers, eliminating the N+1 Redis call problem. `getNearbyDrivers` now searches directly in this key - no filtering needed.
 
 
 
@@ -132,9 +141,9 @@ Driver → Location Service → GEOADD (overwrite)
 
 
 
-### Get Nearby Drivers
+### Get Nearby Drivers (v2 Optimized)
 
-Service → GEOSEARCH → filter via SET → return
+Service → GEOSEARCH (drivers:available:geo) → return (no filtering needed)
 
 ---
 
@@ -176,6 +185,16 @@ Value: driverId → lat/lng
 Key: drivers:available
 Type: SET
 Value: driverId
+```
+
+---
+
+### Available Drivers GEO (v2)
+
+```text
+Key: drivers:available:geo
+Type: GEO
+Value: driverId → lat/lng (only online drivers)
 ```
 
 
@@ -236,13 +255,20 @@ SREM driver from availability set;
 
 
 
-### Get Nearby Drivers
+### Get Nearby Drivers (v2 Optimized)
 
 ```java
-GEOSEARCH drivers within radius;
-filter using SISMEMBER (availability);
-return driverIds;
+// v1: N+1 problem
+GEOSEARCH drivers:geo radius;
+for each driver: SISMEMBER drivers:available (N calls!);
+return;
+
+// v2: Single call
+GEOSEARCH drivers:available:geo radius;  // Only online drivers
+return;
 ```
+
+**Performance Improvement:** Redis calls reduced from N+1 to 1
 
 
 
