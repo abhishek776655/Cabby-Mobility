@@ -10,6 +10,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LocationServiceImplTest {
 
@@ -45,6 +46,19 @@ class LocationServiceImplTest {
         List<String> result = locationService.getNearbyDrivers(28.7041, 77.1025, 5.0, 10);
 
         assertEquals(List.of("42", "43"), result);
+    }
+
+    @Test
+    void getNearbyDrivers_returnsOnlyFromAvailableGeo() {
+        FakeLocationRepository locationRepository = new FakeLocationRepository();
+        locationRepository.nearbyDrivers = List.of("driver1", "driver2");
+        LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
+
+        List<String> result = locationService.getNearbyDrivers(40.7128, -74.0060, 5.0, 10);
+
+        assertEquals(2, result.size());
+        assertTrue(result.contains("driver1"));
+        assertTrue(result.contains("driver2"));
     }
 
     @Test
