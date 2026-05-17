@@ -17,8 +17,11 @@ public class InternalApiFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getPath().toString();
 
         if (path.contains("/internal/")) {
-            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-            return exchange.getResponse().setComplete();
+            String internalHeader = exchange.getRequest().getHeaders().getFirst("X-Internal-Service");
+            if (internalHeader == null || internalHeader.isBlank()) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
         }
 
         return chain.filter(exchange);

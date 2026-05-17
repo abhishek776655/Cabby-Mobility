@@ -29,7 +29,7 @@ public class LocationServiceClient {
                 .build();
 
         ApiResponse<List<Long>> response = restClient.post()
-                .uri("/location/nearby")
+                .uri("/internal/location/nearby")
                 .header("X-Internal-Service", "matchmaking-service")
                 .body(request)
                 .retrieve()
