@@ -259,8 +259,10 @@ Notification --> Rider
 | /rides/** | cab-service | 8083 | ADMIN, RIDER |
 | /dispatch/** | cab-service | 8083 | ADMIN, RIDER, DRIVER | ← Driver response moved here |
 | /driver/** | driver-service | 8084 | ADMIN, DRIVER |
-| /location/** | location-service | 8086 | ADMIN, DRIVER |
-| /internal/** | matchmaking-service | 8087 | INTERNAL ONLY |
+| /location/driver/online | location-service | 8086 | ADMIN, DRIVER |
+| /location/driver/offline | location-service | 8086 | ADMIN, DRIVER |
+| /location/driver/update | location-service | 8086 | ADMIN, DRIVER |
+| /internal/** | matchmaking-service, location-service | 8087, 8086 | INTERNAL ONLY |
 | /ws/** | realtime-gateway-service | 8085 | RIDER, DRIVER (WebSocket) |
 
 ---

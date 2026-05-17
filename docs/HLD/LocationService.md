@@ -201,26 +201,19 @@ Value: driverId → lat/lng (only online drivers)
 
 ## 🌐 APIs
 
-### Driver Online
+### Public (Driver App)
 
-POST /location/driver/online
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/location/driver/online` | POST | Driver goes online |
+| `/location/driver/offline` | POST | Driver goes offline |
+| `/location/driver/update` | POST | Update driver location |
 
+### Internal (Matchmaking Service only)
 
-
-### Driver Offline
-
-POST /location/driver/offline
-
-
-
-### Update Location
-
-POST /location/driver/update
-
-
-### Get Nearby Drivers
-
-POST /location/nearby
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/location/nearby` | POST | Find nearby drivers (not exposed to external clients) |
 
 
 

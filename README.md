@@ -42,7 +42,11 @@ Starts: PostgreSQL (5432), Redis (6379), Kafka (9092), Eureka (8761)
 ### Run Services
 
 ```bash
-# Option 1: Run individual services
+# Option 1: Docker Compose (recommended)
+cd docker
+docker-compose up --build
+
+# Option 2: Run individual services manually
 cd auth-service && mvn spring-boot:run
 cd user-service && mvn spring-boot:run
 cd cab-service && mvn spring-boot:run
@@ -51,8 +55,9 @@ cd location-service && mvn spring-boot:run
 cd matchmaking-service && mvn spring-boot:run
 cd realtime-gateway-service && mvn spring-boot:run
 cd gateway-service && mvn spring-boot:run
+cd eureka-service && mvn spring-boot:run
 
-# Option 2: Use IDE (IntelliJ/Eclipse)
+# Option 3: Use IDE (IntelliJ/Eclipse)
 # Import as Maven projects and run each service
 ```
 
@@ -150,11 +155,14 @@ POST /driver/online
 POST /driver/offline
 ```
 
-### Location
+### Location (Driver only)
 ```
+POST /location/driver/online
+POST /location/driver/offline
 POST /location/driver/update
-POST /location/nearby
 ```
+
+> **Note:** `/location/nearby` is internal-only (used by Matchmaking Service)
 
 ### WebSocket
 ```
