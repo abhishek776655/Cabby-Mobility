@@ -12,6 +12,7 @@ import com.smartmobility.auth.mapper.AuthMapper;
 import com.smartmobility.auth.mapper.RefreshTokenMapper;
 import com.smartmobility.auth.repository.AuthCredentialRepository;
 import com.smartmobility.auth.repository.OutboxEventRepository;
+import com.smartmobility.auth.exception.UserAlreadyExistsException;
 import com.smartmobility.auth.service.RefreshTokenService;
 import com.smartmobility.auth.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,8 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -244,7 +247,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void register_shouldReturnTokenWhenAuthCredentialAlreadyExistsAndProfileNeedsRehydration() {
+    void register_shouldRejectWhenEmailAlreadyRegistered() {
         AuthServiceImpl service = newService();
         RegisterRequestDTO request = RegisterRequestDTO.builder()
                 .email("existing.rider@example.com")
@@ -252,25 +255,10 @@ class AuthServiceImplTest {
                 .roles(Set.of(Role.RIDER))
                 .build();
 
-        AuthCredential existingCredential = AuthCredential.builder()
-                .email(request.getEmail())
-                .passwordHash("secret")
-                .userId(77L)
-                .build();
-
         when(authCredentialRepository.existsByEmail(request.getEmail())).thenReturn(true);
-        when(authCredentialRepository.findByEmail(request.getEmail())).thenReturn(java.util.Optional.of(existingCredential));
-        when(passwordEncoder.matches(request.getPassword(), existingCredential.getPasswordHash())).thenReturn(true);
-        when(userServiceClient.createUser(any())).thenReturn(userResponse(77L, request.getEmail()));
-        when(refreshTokenService.create(77L)).thenReturn(RefreshToken.builder().token("refresh-token").userId(77L).build());
-        when(authMapper.toDTO(any(AuthCredential.class), any(String.class), eq("refresh-token")))
-                .thenReturn(AuthResponseDTO.builder().accessToken("access-token").refreshToken("refresh-token").userId(77L).build());
 
-        AuthResponseDTO response = service.register(request);
+        assertThrows(UserAlreadyExistsException.class, () -> service.register(request));
 
-        assertNotNull(response);
-        assertEquals(77L, response.getUserId());
-
-        verify(userServiceClient).createUser(any());
+        verify(userServiceClient, never()).createUser(any());
     }
 }

@@ -71,21 +71,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO request) {
         if (authCredentialRepository.existsByEmail(request.getEmail())){
-            AuthCredential existingCredential = authCredentialRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new InvalidCredentialsException("Invalid credentials"));
-
-            if (!passwordEncoder.matches(request.getPassword(), existingCredential.getPasswordHash())) {
-                throw new UserAlreadyExistsException("Email already registered");
-            }
-
-            RefreshToken refreshToken = refreshTokenService.create(existingCredential.getUserId());
-            String token = jwtUtil.generateToken(
-                    existingCredential.getUserId(),
-                    existingCredential.getEmail(),
-                    new java.util.HashSet<>(request.getRoles())
-            );
-
-            return authMapper.toDTO(existingCredential, token, refreshToken.getToken());
+            throw new UserAlreadyExistsException("Email already registered");
         }
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());

@@ -72,6 +72,7 @@
                   "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
+                  "    pm.collectionVariables.set(\"rider_refresh_token\", jsonData.data.refreshToken);",
                   "    console.log(\"Rider Token & ID updated from login\");",
                   "}"
                 ],
@@ -166,6 +167,7 @@
                   "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
+                  "    pm.collectionVariables.set(\"driver_refresh_token\", jsonData.data.refreshToken);",
                   "    console.log(\"Driver Token & ID updated from login\");",
                   "}"
                 ],
@@ -237,6 +239,104 @@
               "path": [
                 "driver",
                 "drivers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Rider Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{rider_refresh_token}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout Rider",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/logout",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{rider_refresh_token}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout All Devices (Rider)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/logout-all",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
               ]
             }
           },
@@ -338,6 +438,90 @@
                   "value": "{{driver_user_id}}"
                 }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Driver Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/drivers/{{driver_user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "drivers",
+                "{{driver_user_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Driver Availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/drivers/{{driver_user_id}}/availability?available=true",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "drivers",
+                "{{driver_user_id}}",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "available",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Drivers Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/drivers/batch",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "drivers",
+                "batch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {{driver_user_id}}\n]"
             }
           },
           "response": []
@@ -489,6 +673,30 @@
                 "rides",
                 "{{active_ride_id}}",
                 "cancel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Match Ride (unreachable - no ADMIN role exists)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-Role",
+                "value": "ADMIN"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/match",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "match"
               ]
             }
           },
@@ -1394,6 +1602,164 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "08. Rider Profile & Saved Locations",
+      "item": [
+        {
+          "name": "Get My Rider Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/riders/me",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "riders",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Rider Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/riders/me/preferences",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "riders",
+                "me",
+                "preferences"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferredPaymentMethod\": \"CARD\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Saved Locations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/riders/me/locations",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "riders",
+                "me",
+                "locations"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Saved Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/riders/me/locations",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "riders",
+                "me",
+                "locations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"address\": \"123 Connaught Place, New Delhi\",\n  \"latitude\": 28.6139,\n  \"longitude\": 77.2090\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set(\"saved_location_id\", jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Saved Location",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/riders/me/locations/{{saved_location_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "riders",
+                "me",
+                "locations",
+                "{{saved_location_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -1504,6 +1870,21 @@
     },
     {
       "key": "simulator_interval_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rider_refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saved_location_id",
       "value": "",
       "type": "string"
     }
