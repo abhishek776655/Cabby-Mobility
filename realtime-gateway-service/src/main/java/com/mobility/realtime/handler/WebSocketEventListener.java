@@ -1,5 +1,7 @@
 package com.mobility.realtime.handler;
 
+import com.mobility.realtime.security.StompAuthChannelInterceptor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -11,7 +13,10 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class WebSocketEventListener {
+
+    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
 
     @EventListener
     public void handleSessionConnect(SessionConnectEvent event) {
@@ -30,5 +35,6 @@ public class WebSocketEventListener {
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
         log.info("WebSocket disconnected sessionId={} closeStatus={}",
                 event.getSessionId(), event.getCloseStatus());
+        stompAuthChannelInterceptor.removeSession(event.getSessionId());
     }
 }

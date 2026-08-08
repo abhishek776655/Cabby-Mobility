@@ -53,4 +53,10 @@ public class UserController {
 
         throw new IllegalArgumentException("Email query param is required");
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
 }

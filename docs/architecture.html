@@ -421,9 +421,10 @@
                   <div class="node rest wide-1 flow-target"><strong>Auth :8091</strong><span>Register, login, refresh, logout, JWT issuance.</span></div>
                   <div class="node rest wide-1 flow-target"><strong>User :8081</strong><span>Identity data and user lifecycle events.</span></div>
                   <div class="node rest wide-1 flow-target"><strong>Cab :8089</strong><span>Ride state machine and dispatch facade.</span></div>
+                  <div class="node rest wide-1 flow-target"><strong>Rider :8082</strong><span>Rider profiles and saved locations.</span></div>
                   <div class="node rest wide-1 flow-target"><strong>Driver :8084</strong><span>Driver profile creation and lookup.</span></div>
                   <div class="node rest wide-1 flow-target"><strong>Location :8090</strong><span>Driver location, online/offline, Redis GEO lookup.</span></div>
-                  <div class="node kafka wide-2 flow-target"><strong>Matchmaking :8087</strong><span>Consumes ride requests, reserves drivers, retries dispatch.</span></div>
+                  <div class="node kafka wide-1 flow-target"><strong>Matchmaking :8087</strong><span>Consumes ride requests, reserves drivers, retries dispatch.</span></div>
                   <div class="node ws wide-1 flow-target"><strong>Realtime :8095</strong><span>Kafka-to-WebSocket fanout.</span></div>
                 </div>
               </div>
@@ -436,14 +437,14 @@
               <div class="layer">
                 <div class="layer-label">Data Plane</div>
                 <div class="node-row">
-                  <div class="node storage wide-3 flow-target"><strong>PostgreSQL :5432</strong><span><code>auth_db</code>, <code>user_db</code>, <code>cab_db</code>, <code>driver_db</code>, <code>matchmaking_db</code></span></div>
+                  <div class="node storage wide-3 flow-target"><strong>PostgreSQL :5432</strong><span><code>auth_db</code>, <code>user_db</code>, <code>cab_db</code>, <code>driver_db</code>, <code>rider_db</code>, <code>matchmaking_db</code></span></div>
                   <div class="node storage wide-3 flow-target"><strong>Redis :6379</strong><span>Gateway rate limits, driver GEO/availability, matchmaking reservations and dispatch cache.</span></div>
                 </div>
               </div>
             </div>
 
             <div class="links">
-              <div class="link-card rest flow-target"><strong>External REST</strong><p>Gateway config routes <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/location/driver/*</code>, <code>/location/internal/nearby</code>, and <code>/matchmaking/**</code>.</p></div>
+              <div class="link-card rest flow-target"><strong>External REST</strong><p>Gateway config routes <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/riders/**</code>, <code>/location/driver/*</code>, <code>/location/internal/nearby</code>, and <code>/matchmaking/**</code>.</p></div>
               <div class="link-card kafka flow-target"><strong>Async orchestration</strong><p>Cab publishes ride and driver-response events; Matchmaking publishes assignment outcomes; User publishes onboarding events.</p></div>
               <div class="link-card storage flow-target"><strong>Fast state</strong><p>Redis keeps low-latency location and reservation state; PostgreSQL owns durable domain data.</p></div>
               <div class="link-card ws flow-target"><strong>Realtime fanout</strong><p>Realtime Gateway consumes Kafka events and broadcasts to rider and driver STOMP topics.</p></div>
@@ -508,6 +509,7 @@
                 <div class="step storage flow-target"><div class="num">3</div><div class="step-body"><strong>Auth/User -> PostgreSQL</strong><span>Credentials, refresh tokens, and identity records are persisted separately.</span></div></div>
                 <div class="step kafka flow-target"><div class="num">4</div><div class="step-body"><strong>User -> Kafka</strong><span>Publishes <code>user.created</code> after identity creation.</span></div></div>
                 <div class="step kafka flow-target"><div class="num">5</div><div class="step-body"><strong>Driver consumes onboarding</strong><span>Driver Service consumes <code>user.created</code> for driver profile creation flow.</span></div></div>
+                <div class="step kafka flow-target"><div class="num">6</div><div class="step-body"><strong>Rider consumes onboarding</strong><span>Rider Service consumes <code>user.created</code> for default profile-seeding flow.</span></div></div>
               </div>
             </article>
           </div>
@@ -523,11 +525,12 @@
             </div>
           </div>
           <div class="inventory">
-            <article class="service rest"><h3>API Gateway</h3><div class="meta"><span class="pill">:8080</span><span class="pill">REST edge</span><span class="pill">Redis rate limits</span></div><p>Routes by Eureka service id, validates JWT, applies rate limiting and circuit breakers, and checks internal API headers.</p><ul><li>Configured prefixes: <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/matchmaking/**</code></li><li>Location routes: <code>/location/driver/online</code>, <code>/location/driver/offline</code>, <code>/location/driver/update</code>, guarded <code>/location/internal/nearby</code></li><li>Routes now align with Cab, Driver, and Location controller paths.</li></ul></article>
+            <article class="service rest"><h3>API Gateway</h3><div class="meta"><span class="pill">:8080</span><span class="pill">REST edge</span><span class="pill">Redis rate limits</span></div><p>Routes by Eureka service id, validates JWT, applies rate limiting and circuit breakers, and checks internal API headers.</p><ul><li>Configured prefixes: <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/riders/**</code>, <code>/matchmaking/**</code></li><li>Location routes: <code>/location/driver/online</code>, <code>/location/driver/offline</code>, <code>/location/driver/update</code>, guarded <code>/location/internal/nearby</code></li><li>Routes now align with Cab, Driver, and Location controller paths.</li></ul></article>
             <article class="service rest"><h3>Auth Service</h3><div class="meta"><span class="pill">:8091</span><span class="pill">PostgreSQL</span><span class="pill">JWT</span></div><p>Handles registration, login, refresh token lifecycle, logout, and user-service orchestration through internal REST calls.</p></article>
             <article class="service kafka"><h3>User Service</h3><div class="meta"><span class="pill">:8081</span><span class="pill">PostgreSQL</span><span class="pill">Kafka producer</span></div><p>Owns identity records and publishes <code>user.created</code> after successful user creation.</p></article>
             <article class="service kafka"><h3>Cab Service</h3><div class="meta"><span class="pill">:8089</span><span class="pill">PostgreSQL</span><span class="pill">Kafka in/out</span></div><p>Owns ride state, exposes rider ride APIs and driver response dispatch APIs, and consumes assignment results.</p></article>
             <article class="service kafka"><h3>Driver Service</h3><div class="meta"><span class="pill">:8084</span><span class="pill">PostgreSQL</span><span class="pill">Kafka consumer</span></div><p>Owns driver profile data and consumes user onboarding events. Availability/location realtime state is handled by Location Service in this codebase.</p></article>
+            <article class="service kafka"><h3>Rider Service</h3><div class="meta"><span class="pill">:8082</span><span class="pill">PostgreSQL</span><span class="pill">Kafka consumer</span></div><p>Owns rider profile metadata, preferences, and saved locations. Consumes <code>user.created</code> onboarding events.</p></article>
             <article class="service storage"><h3>Location Service</h3><div class="meta"><span class="pill">:8090</span><span class="pill">Redis GEO</span><span class="pill">Internal lookup</span></div><p>Handles driver online/offline/update and nearby driver search using optimized online-driver GEO state.</p><ul><li><code>/location/driver/online</code>, <code>/offline</code>, <code>/update</code></li><li><code>/location/internal/nearby</code></li></ul></article>
             <article class="service kafka"><h3>Matchmaking Service</h3><div class="meta"><span class="pill">:8087</span><span class="pill">PostgreSQL</span><span class="pill">Redis reservation</span></div><p>Consumes ride requests and driver responses, queries Location, reserves drivers with TTL, persists dispatch state, and emits assignment outcomes.</p></article>
             <article class="service ws"><h3>Realtime Gateway</h3><div class="meta"><span class="pill">:8095</span><span class="pill">Stateless</span><span class="pill">WebSocket/STOMP</span></div><p>Consumes realtime Kafka events and broadcasts to rider trip topics and driver assignment topics using Spring SimpleBroker.</p></article>
@@ -548,7 +551,7 @@
             <table>
               <thead><tr><th>Channel</th><th>Producer</th><th>Consumer</th><th>Purpose</th></tr></thead>
               <tbody>
-                <tr><td><code>user.created</code></td><td>User Service</td><td>Driver Service</td><td>Downstream onboarding after identity creation.</td></tr>
+                <tr><td><code>user.created</code></td><td>User Service</td><td>Driver Service, Rider Service</td><td>Downstream onboarding after identity creation.</td></tr>
                 <tr><td><code>ride-requested</code></td><td>Cab Service</td><td>Matchmaking Service</td><td>Start driver discovery and dispatch.</td></tr>
                 <tr><td><code>assignment-accepted</code></td><td>Cab Service</td><td>Matchmaking Service</td><td>Driver accepted a dispatch request.</td></tr>
                 <tr><td><code>assignment-rejected</code></td><td>Cab Service</td><td>Matchmaking Service</td><td>Driver rejected; retry next candidate.</td></tr>
@@ -562,7 +565,7 @@
             <table>
               <thead><tr><th>Store</th><th>Owned data</th></tr></thead>
               <tbody>
-                <tr><td>PostgreSQL</td><td><code>auth_db</code>, <code>user_db</code>, <code>cab_db</code>, <code>driver_db</code>, <code>matchmaking_db</code></td></tr>
+                <tr><td>PostgreSQL</td><td><code>auth_db</code>, <code>user_db</code>, <code>cab_db</code>, <code>driver_db</code>, <code>rider_db</code>, <code>matchmaking_db</code></td></tr>
                 <tr><td>Redis GEO</td><td><code>drivers:geo</code>, <code>drivers:available</code>, <code>drivers:available:geo</code></td></tr>
                 <tr><td>Redis reservation/cache</td><td><code>driver:{driverId}:reservation</code>, <code>dispatch:{dispatchId}</code></td></tr>
                 <tr><td>Redis gateway</td><td>Spring Cloud Gateway request rate limiter buckets.</td></tr>
@@ -582,9 +585,9 @@
             </div>
           </div>
           <div class="note-list">
-            <div class="note">Service defaults: Gateway <code>8080</code>, Auth <code>8091</code>, User <code>8081</code>, Cab <code>8089</code>, Driver <code>8084</code>, Location <code>8090</code>, Matchmaking <code>8087</code>, Realtime <code>8095</code>, Eureka <code>8761</code>.</div>
-            <div class="note">Gateway configured predicates: <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/location/driver/online</code>, <code>/location/driver/offline</code>, <code>/location/driver/update</code>, guarded <code>/location/internal/nearby</code>, and <code>/matchmaking/**</code>.</div>
-            <div class="note">Service controller paths: Auth <code>/auth</code>, User <code>/internal/users</code>, Cab <code>/rides</code> and <code>/dispatch</code>, Driver <code>/drivers</code>, Location <code>/location</code> with internal <code>/location/internal/nearby</code>, Matchmaking <code>/internal/dispatch</code>, Realtime <code>/realtime/info</code> and WebSocket/STOMP topics.</div>
+            <div class="note">Service defaults: Gateway <code>8080</code>, Auth <code>8091</code>, User <code>8081</code>, Cab <code>8089</code>, Driver <code>8084</code>, Rider <code>8082</code>, Location <code>8090</code>, Matchmaking <code>8087</code>, Realtime <code>8095</code>, Eureka <code>8761</code>.</div>
+            <div class="note">Gateway configured predicates: <code>/auth/**</code>, <code>/users/**</code>, <code>/cab/**</code>, <code>/rides/**</code>, <code>/dispatch/**</code>, <code>/driver/**</code>, <code>/drivers/**</code>, <code>/riders/**</code>, <code>/location/driver/online</code>, <code>/location/driver/offline</code>, <code>/location/driver/update</code>, guarded <code>/location/internal/nearby</code>, and <code>/matchmaking/**</code>.</div>
+            <div class="note">Service controller paths: Auth <code>/auth</code>, User <code>/internal/users</code>, Cab <code>/rides</code> and <code>/dispatch</code>, Driver <code>/drivers</code>, Rider <code>/riders</code>, Location <code>/location</code> with internal <code>/location/internal/nearby</code>, Matchmaking <code>/internal/dispatch</code>, Realtime <code>/realtime/info</code> and WebSocket/STOMP topics.</div>
             <div class="note">Matchmaking calls the Location service base URL with <code>/internal/nearby</code>. The full Location controller path is <code>/location/internal/nearby</code>.</div>
             <div class="note">Realtime Gateway consumes <code>driver-location-events</code> and <code>assignment-requested</code>, then broadcasts to <code>/topic/trip/{rideId}</code> and <code>/topic/driver/{driverUserId}</code>.</div>
           </div>

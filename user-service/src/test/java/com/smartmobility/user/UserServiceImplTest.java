@@ -17,6 +17,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
@@ -50,5 +52,28 @@ class UserServiceImplTest {
 
         // Assert
         assertEquals(1L, result.getUserId());
+    }
+
+    @Test
+    void createUser_shouldSaveAndPublish() {
+        CreateUserDTO dto = new CreateUserDTO();
+        dto.setEmail("new@example.com");
+
+        UserEntity entity = new UserEntity();
+        entity.setEmail("new@example.com");
+        entity.setId(123L);
+
+        when(userMapper.toEntity(eq(dto))).thenReturn(entity);
+        when(userRepository.save(entity)).thenReturn(entity);
+        when(userMapper.toDTO(entity)).thenAnswer(invocation ->
+                UserResponseDTO.builder().userId(entity.getId()).email("new@example.com").build()
+        );
+
+        UserResponseDTO result = userService.createUser(dto);
+
+        verify(userMapper).toEntity(eq(dto));
+        verify(userRepository).save(entity);
+        verify(eventPublisher).publishUserCreated(entity);
+        assertEquals(entity.getId(), result.getUserId());
     }
 }

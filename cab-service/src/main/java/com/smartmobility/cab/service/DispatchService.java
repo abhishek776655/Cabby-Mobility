@@ -7,9 +7,9 @@ import java.util.UUID;
 
 public interface DispatchService {
 
-    void handleDriverResponse(UUID dispatchId, Long driverUserId, boolean accepted);
+    void handleDriverResponse(UUID dispatchId, Long driverUserId, boolean accepted, UUID rideId, Long currentUserId);
 
-    void cancelDispatch(UUID rideId, String reason);
+    void cancelDispatch(UUID rideId, String reason, Long currentUserId);
 
-    Optional<DispatchStatusResponse> getDispatchStatus(UUID rideId);
+    Optional<DispatchStatusResponse> getDispatchStatus(UUID rideId, Long currentUserId);
 }

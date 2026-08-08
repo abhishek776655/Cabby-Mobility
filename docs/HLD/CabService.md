@@ -337,7 +337,7 @@ save ride;
 {
   "eventId": "uuid",
   "rideId": "uuid",
-  "driverId": 12345,
+  "driverUserId": 12345,
   "assignedAt": "2024-01-01T12:00:00"
 }
 ```

@@ -29,6 +29,15 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(ForbiddenAccessException.class)
+    public ResponseEntity<ApiResponse<?>> handleForbidden(ForbiddenAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponseBuilder.error(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage(),
+                "FORBIDDEN"
+        ));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidation(MethodArgumentNotValidException ex) {
         return ResponseEntity.badRequest().body(ApiResponseBuilder.error(

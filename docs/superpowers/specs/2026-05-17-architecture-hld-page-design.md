@@ -72,7 +72,7 @@ Current code/config details:
 - Current defaults use ports 8080 gateway, 8091 auth, 8081 user, 8089 cab, 8084 driver, 8090 location, 8087 matchmaking, 8095 realtime, and 8761 Eureka.
 - Gateway routes Cab through `/cab/**`, `/rides/**`, and `/dispatch/**`.
 - Gateway routes Driver through `/driver/**` and `/drivers/**`.
-- Gateway routes internal nearby lookup through guarded `/location/internal/nearby`.
+- Gateway routes internal nearby lookup through guarded `/internal/nearby`.
 - Matchmaking calls Location Service at `/internal/nearby` because its base URL points at the Location Service.
 - Gateway exposes public driver location APIs and treats nearby/internal location lookup as internal-only.
 

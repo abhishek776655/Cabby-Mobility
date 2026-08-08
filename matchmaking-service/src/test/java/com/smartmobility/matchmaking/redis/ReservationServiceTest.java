@@ -27,7 +27,7 @@ class ReservationServiceTest {
     @BeforeEach
     void setUp() {
         properties = new MatchmakingProperties();
-        properties.getReservation().setTtlSeconds(15);
+        properties.getAssignment().setTimeoutSeconds(15);
 
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
 
@@ -77,6 +77,39 @@ class ReservationServiceTest {
             .thenReturn("dispatch-other:ride-456");
 
         boolean result = service.releaseReservation(1L, "dispatch-123");
+
+        assertFalse(result);
+    }
+
+    @Test
+    void testExtendReservationSuccessWhenOwnerMatches() {
+        when(valueOps.get("driver:1:reservation"))
+            .thenReturn("dispatch-123:ride-456");
+        when(redisTemplate.expire("driver:1:reservation", Duration.ofSeconds(7200)))
+            .thenReturn(true);
+
+        boolean result = service.extendReservation(1L, "dispatch-123", 7200);
+
+        assertTrue(result);
+        verify(redisTemplate).expire("driver:1:reservation", Duration.ofSeconds(7200));
+    }
+
+    @Test
+    void testExtendReservationFailsWhenNotOwner() {
+        when(valueOps.get("driver:1:reservation"))
+            .thenReturn("dispatch-other:ride-456");
+
+        boolean result = service.extendReservation(1L, "dispatch-123", 7200);
+
+        assertFalse(result);
+        verify(redisTemplate, never()).expire(anyString(), any(Duration.class));
+    }
+
+    @Test
+    void testExtendReservationFailsWhenNoReservationExists() {
+        when(valueOps.get("driver:1:reservation")).thenReturn(null);
+
+        boolean result = service.extendReservation(1L, "dispatch-123", 7200);
 
         assertFalse(result);
     }

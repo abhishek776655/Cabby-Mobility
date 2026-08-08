@@ -100,6 +100,7 @@ Terminal/alternate states: CANCELLED, NO_DRIVER_AVAILABLE
 | User Service | 8081 | Spring Boot |
 | Cab Service | 8089 | Spring Boot |
 | Driver Service | 8084 | Spring Boot |
+| Rider Service | 8082 | Spring Boot |
 | Location Service | 8090 | Spring Boot + Redis |
 | Matchmaking Service | 8087 | Spring Boot + Kafka |
 | Realtime Gateway | 8095 | Spring Boot + WebSocket |
@@ -127,12 +128,14 @@ Gateway -->|"auth routes"| Auth["Auth Service :8091"]
 Gateway -->|"user routes"| User["User Service :8081"]
 Gateway -->|"rides and dispatch routes"| Cab["Cab Service :8089"]
 Gateway -->|"driver routes"| Driver["Driver Service :8084"]
+Gateway -->|"rider routes"| Rider["Rider Service :8082"]
 Gateway -->|"location driver routes"| Location["Location Service :8090"]
 Gateway -->|"matchmaking routes"| Matchmaking["Matchmaking Service :8087"]
 
 Auth -->|"internal users API"| User
 User -->|"user.created"| Kafka[("Kafka :9092")]
 Kafka -->|"user.created"| Driver
+Kafka -->|"user.created"| Rider
 
 Cab -->|"ride-requested"| Kafka
 Kafka -->|"ride-requested"| Matchmaking
@@ -144,6 +147,7 @@ Cab -->|"rides"| Postgres
 Auth -->|"credentials and refresh tokens"| Postgres
 User -->|"users"| Postgres
 Driver -->|"drivers"| Postgres
+Rider -->|"riders"| Postgres
 
 Matchmaking -->|"driver-assigned or matchmaking-failed"| Kafka
 Kafka -->|"driver-assigned or matchmaking-failed"| Cab
@@ -160,6 +164,7 @@ Auth -.->|"registers"| Eureka
 User -.->|"registers"| Eureka
 Cab -.->|"registers"| Eureka
 Driver -.->|"registers"| Eureka
+Rider -.->|"registers"| Eureka
 Location -.->|"registers"| Eureka
 Matchmaking -.->|"registers"| Eureka
 Realtime -.->|"registers"| Eureka
@@ -183,7 +188,7 @@ sequenceDiagram
 
     Rider->>Gateway: POST ride request
     Gateway->>CabService: Route to ride creation API
-    CabService->>CabService: Persist ride as REQUESTED/MATCHING
+    CabService->>CabService: Persist ride as MATCHING
     CabService->>Kafka: Publish ride-requested
 
     Kafka->>MatchmakingService: Consume ride-requested
@@ -218,7 +223,7 @@ sequenceDiagram
     end
 ```
 
-#### AUTH + USER + DRIVER ONBOARDING FLOW
+#### AUTH + USER + ROLE-SPECIFIC ONBOARDING FLOW
 ```mermaid
 sequenceDiagram
     participant Client
@@ -227,6 +232,7 @@ sequenceDiagram
     participant UserService
     participant Kafka
     participant DriverService
+    participant RiderService
     participant Postgres
 
     Client->>Gateway: POST /auth/register or /auth/login
@@ -234,8 +240,10 @@ sequenceDiagram
     AuthService->>UserService: POST /internal/users for registration
     UserService->>Postgres: Persist identity
     UserService->>Kafka: Publish user.created
-    Kafka->>DriverService: Consume user.created
+    Kafka->>DriverService: Consume user.created (DRIVER role)
     DriverService->>Postgres: Create or update driver profile when applicable
+    Kafka->>RiderService: Consume user.created (RIDER role)
+    RiderService->>Postgres: Create default rider profile
     AuthService->>Postgres: Persist credentials / refresh tokens
     AuthService-->>Client: JWT access token + refresh token
 ```
@@ -322,10 +330,11 @@ RealtimeGateway -->|"trip topic"| Rider
 | /users/** | user-service | 8081 | Configured gateway route |
 | /cab/**, /rides/**, /dispatch/** | cab-service | 8089 | Cab and ride APIs |
 | /driver/**, /drivers/** | driver-service | 8084 | Driver APIs |
+| /riders/** | rider-service | 8082 | RIDER, ADMIN |
 | /location/driver/online | location-service | 8090 | DRIVER |
 | /location/driver/offline | location-service | 8090 | DRIVER |
 | /location/driver/update | location-service | 8090 | DRIVER |
-| /location/internal/nearby | location-service | 8090 | INTERNAL header required by Gateway |
+| /internal/nearby | location-service | 8090 | INTERNAL header required by Gateway |
 | /matchmaking/** | matchmaking-service | 8087 | Configured gateway route |
 
 ### Service Controller Paths
@@ -336,7 +345,8 @@ RealtimeGateway -->|"trip topic"| Rider
 | User Service | `/internal/users`, `/internal/users/{id}` |
 | Cab Service | `/rides`, `/rides/{rideId}`, `/rides/{rideId}/cancel`, `/rides/{rideId}/start`, `/rides/{rideId}/complete`, `/dispatch/driver-response`, `/dispatch/cancel`, `/dispatch/{rideId}` |
 | Driver Service | `/drivers`, `/drivers/{userId}` |
-| Location Service | `/location/driver/online`, `/location/driver/offline`, `/location/driver/update`, `/location/internal/nearby` |
+| Rider Service | `/riders/me`, `/riders/me/preferences`, `/riders/me/locations`, `/riders/me/locations/{locationId}` |
+| Location Service | `/location/driver/online`, `/location/driver/offline`, `/location/driver/update`, `/internal/nearby` |
 | Matchmaking Service | `/internal/dispatch/{rideId}` |
 | Realtime Gateway | `/realtime/info`, WebSocket/STOMP topics `/topic/trip/{rideId}` and `/topic/driver/{driverUserId}` |
 
@@ -402,7 +412,24 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 6. Matchmaking Service (CORE INTELLIGENCE - INTERNAL)
+## 6. Rider Service
+
+### Responsibilities
+
+* Rider profile onboarding and lifecycle management
+* Saved locations management with geographic coordinates
+* Role-based preference updates (e.g. payment method)
+* Maintain overall rider rating
+
+### Communication
+
+* Consumes → user.created
+* Persists → rider profiles and saved locations in `rider_db`
+* Exposes REST APIs under `/riders/**` prefix
+
+---
+
+## 7. Matchmaking Service (CORE INTELLIGENCE - INTERNAL)
 
 ### Responsibilities
 
@@ -424,7 +451,7 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 7. Location Service
+## 8. Location Service
 
 ### Responsibilities
 
@@ -440,7 +467,7 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 8. Realtime Gateway Service
+## 9. Realtime Gateway Service
 
 ### Responsibilities
 
@@ -456,7 +483,7 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 9. Pricing Service (Future)
+## 10. Pricing Service (Future)
 
 ### Responsibilities
 
@@ -465,7 +492,7 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 9. Payment Service (Future)
+## 11. Payment Service (Future)
 
 ### Responsibilities
 
@@ -514,12 +541,13 @@ Other:
 10. Matchmaking publishes driver-assigned or matchmaking-failed
 11. Cab Service consumes final outcome and updates ride state
 
-**Auth/User/Driver Onboarding Flow:**
+**Auth/User/Role-Specific Onboarding Flow:**
 1. Client → Gateway → Auth Service
 2. Auth Service → User Service `/internal/users`
 3. User Service persists identity
 4. User Service → user.created → Kafka
 5. Driver Service consumes user.created and creates/updates driver profile when applicable
+6. Rider Service consumes user.created and creates/updates rider profile when applicable
 
 **Realtime Flow:**
 1. Realtime Gateway consumes driver-location-events and assignment-requested
@@ -578,7 +606,7 @@ Other:
 |------|---------------|
 | ADMIN | All paths |
 | DRIVER | Driver profile routes, location driver routes, dispatch driver response |
-| RIDER | User routes, ride routes, dispatch status/cancel routes |
+| RIDER | User routes, ride routes, dispatch status/cancel routes, rider profile and saved locations |
 | INTERNAL SERVICE | Internal dispatch and nearby-driver lookup routes |
 
 ---
@@ -592,6 +620,7 @@ Other:
 * `user_db` for identity data
 * `cab_db` for rides and processed events
 * `driver_db` for driver profiles
+* `rider_db` for rider profiles and saved locations
 * `matchmaking_db` for dispatch sessions, assignment attempts, processed events
 
 ## Redis

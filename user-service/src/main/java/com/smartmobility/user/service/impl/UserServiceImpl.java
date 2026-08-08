@@ -8,14 +8,10 @@ import com.smartmobility.user.producer.UserEventPublisher;
 import com.smartmobility.user.repository.UserRepository;
 import com.smartmobility.user.service.UserService;
 import com.smartmobility.user.exception.UserNotFoundException;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,17 +25,19 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO createUser(CreateUserDTO dto) {
 
         log.info("Creating user with email: {}", dto.getEmail());
+        UserEntity user = userMapper.toEntity(dto);
+        UserEntity savedUser = userRepository.save(user);
 
-        Long userId = UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
+        log.info("User saved with id: {}", savedUser.getId());
+        eventPublisher.publishUserCreated(savedUser);
 
-        UserEntity user = userMapper.toEntity(dto, userId);
+        return userMapper.toDTO(savedUser);
+    }
 
-        userRepository.save(user);
-
-        log.info("User saved with id: {}", userId);
-        eventPublisher.publishUserCreated(user);
-
-        return userMapper.toDTO(user);
+    @Override
+    public void deleteUser(Long id) {
+        log.info("Deleting user with id: {}", id);
+        userRepository.deleteById(id);
     }
 
     @Override

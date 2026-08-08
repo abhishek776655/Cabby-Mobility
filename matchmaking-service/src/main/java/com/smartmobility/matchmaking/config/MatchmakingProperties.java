@@ -8,10 +8,17 @@ import org.springframework.stereotype.Component;
 public class MatchmakingProperties {
 
     private Assignment assignment = new Assignment();
-    private Reservation reservation = new Reservation();
+
+    /**
+     * Safety-net TTL (seconds) for a driver's reservation once they accept a ride, covering
+     * the expected ride duration. The reservation is normally released explicitly when
+     * ride-completed/ride-cancelled arrives; this TTL only protects against that event being
+     * lost, so a driver isn't reserved forever.
+     */
+    private long onTripReservationSeconds = 7200;
 
     public static class Assignment {
-        private int timeoutSeconds = 15;
+        private int timeoutSeconds = 30;
         private int maxRetries = 10;
         public int getTimeoutSeconds() { return timeoutSeconds; }
         public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
@@ -19,12 +26,12 @@ public class MatchmakingProperties {
         public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
     }
 
-    public static class Reservation {
-        private int ttlSeconds = 15;
-        public int getTtlSeconds() { return ttlSeconds; }
-        public void setTtlSeconds(int ttlSeconds) { this.ttlSeconds = ttlSeconds; }
+    public int getDispatchTimeoutSeconds() {
+        return assignment.getTimeoutSeconds();
     }
 
     public Assignment getAssignment() { return assignment; }
-    public Reservation getReservation() { return reservation; }
+
+    public long getOnTripReservationSeconds() { return onTripReservationSeconds; }
+    public void setOnTripReservationSeconds(long onTripReservationSeconds) { this.onTripReservationSeconds = onTripReservationSeconds; }
 }

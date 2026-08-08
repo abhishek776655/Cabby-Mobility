@@ -4,12 +4,15 @@ import com.smartmobility.cab.dto.RideRequestDTO;
 import com.smartmobility.cab.dto.RideResponseDTO;
 import com.smartmobility.cab.entity.ProcessedEvent;
 import com.smartmobility.cab.entity.RideEntity;
+import com.smartmobility.cab.event.RideCancelledEvent;
+import com.smartmobility.cab.event.RideCompletedEvent;
 import com.smartmobility.cab.event.RideRequestedEvent;
 import com.smartmobility.cab.exception.RideNotFoundException;
 import com.smartmobility.cab.mapper.RideMapper;
 import com.smartmobility.cab.kafka.RideEventProducer;
 import com.smartmobility.cab.repository.ProcessedEventRepository;
 import com.smartmobility.cab.repository.RideRepository;
+import com.smartmobility.cab.security.RideAuthorizationGuard;
 import com.smartmobility.cab.service.RideService;
 import com.smartmobility.cab.state.RideState;
 import com.smartmobility.cab.state.RideStateFactory;
@@ -30,12 +33,21 @@ public class RideServiceImpl implements RideService {
     private final RideStateFactory rideStateFactory;
     private final RideEventProducer producer;
     private final ProcessedEventRepository processedEventRepository;
+    private final RideAuthorizationGuard authorizationGuard;
+
     private RideEntity getRide(UUID id) {
         return rideRepository.findById(id)
                 .orElseThrow(() -> new RideNotFoundException("Ride not found"));
     }
+
     @Override
-    public RideResponseDTO createRide(RideRequestDTO request) {
+    @Transactional
+    public RideResponseDTO createRide(RideRequestDTO request, Long currentUserId) {
+        authorizationGuard.assertRiderOwnsRide(
+                RideEntity.builder().riderUserId(request.getRiderUserId()).build(),
+                currentUserId
+        );
+
         // 1. Convert DTO → Entity
         RideEntity ride = RideMapper.toEntity(request);
 
@@ -61,17 +73,19 @@ public class RideServiceImpl implements RideService {
         return RideMapper.toResponseDTO(savedRide);    }
 
     @Override
-    public RideResponseDTO getRideById(UUID rideId) {
+    public RideResponseDTO getRideById(UUID rideId, Long currentUserId) {
         // 1. Fetch ride from DB
         RideEntity ride = getRide(rideId);
+        authorizationGuard.assertRideOwnedByRiderOrDriver(ride, currentUserId);
         // 2. Convert to DTO
         return RideMapper.toResponseDTO(ride);
     }
 
     @Override
-    public RideResponseDTO cancelRide(UUID rideId) {
+    public RideResponseDTO cancelRide(UUID rideId, Long currentUserId) {
         // 1. Fetch ride
         RideEntity ride = getRide(rideId);
+        authorizationGuard.assertRiderOwnsRide(ride, currentUserId);
 
         // 2. Get current state
         RideState state = rideStateFactory.getState(ride.getStatus());
@@ -82,14 +96,26 @@ public class RideServiceImpl implements RideService {
         // 4. Save updated ride
         RideEntity updatedRide = rideRepository.save(ride);
 
-        // 5. Return response
+        // 5. Tell matchmaking to release the driver's reservation, if one was assigned —
+        // otherwise they'd stay falsely reserved until the on-trip safety-net TTL expires.
+        if (updatedRide.getDriverUserId() != null) {
+            producer.publishRideCancelled(RideCancelledEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .rideId(updatedRide.getId())
+                    .driverUserId(updatedRide.getDriverUserId())
+                    .cancelledAt(LocalDateTime.now().toString())
+                    .build());
+        }
+
+        // 6. Return response
         return RideMapper.toResponseDTO(updatedRide);
     }
 
     @Override
-    public RideResponseDTO startRide(UUID rideId) {
+    public RideResponseDTO startRide(UUID rideId, Long currentUserId) {
         // 1. Fetch ride
         RideEntity ride = getRide(rideId);
+        authorizationGuard.assertAssignedDriverOwnsRide(ride, currentUserId);
 
         // 2. Get current state
         RideState state = rideStateFactory.getState(ride.getStatus());
@@ -105,9 +131,10 @@ public class RideServiceImpl implements RideService {
     }
 
     @Override
-    public RideResponseDTO completeRide(UUID rideId) {
+    public RideResponseDTO completeRide(UUID rideId, Long currentUserId) {
         // 1. Fetch ride
         RideEntity ride = getRide(rideId);
+        authorizationGuard.assertAssignedDriverOwnsRide(ride, currentUserId);
 
         // 2. Get current state
         RideState state = rideStateFactory.getState(ride.getStatus());
@@ -118,7 +145,17 @@ public class RideServiceImpl implements RideService {
         // 4. Save updated ride
         RideEntity updatedRide = rideRepository.save(ride);
 
-        // 5. Return response
+        // 5. Tell matchmaking the driver is free again — this is what actually releases
+        // their reservation now that acceptance no longer does (see handleAcceptance).
+        producer.publishRideCompleted(RideCompletedEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .rideId(updatedRide.getId())
+                .driverUserId(updatedRide.getDriverUserId())
+                .riderUserId(updatedRide.getRiderUserId())
+                .completedAt(LocalDateTime.now().toString())
+                .build());
+
+        // 6. Return response
         return RideMapper.toResponseDTO(updatedRide);
     }
 

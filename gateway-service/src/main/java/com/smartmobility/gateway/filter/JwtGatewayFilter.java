@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -17,6 +18,7 @@ import java.util.Set;
 public class JwtGatewayFilter implements GlobalFilter, Ordered {
 
     private final JwtUtils jwtUtil;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
     // Role-based route permissions
     private static final Map<String, Set<String>> ROLE_PERMISSIONS = Map.of(
@@ -24,24 +26,38 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/auth/**",
                     "/users/**",
                     "/cab/**",
+                    "/rides/**",
+                    "/dispatch/**",
                     "/driver/**",
+                    "/drivers/**",
                     "/location/**",
-                    "/matchmaking/**"
+                    "/matchmaking/**",
+                    "/riders/**"
             ),
             "DRIVER", Set.of(
                     "/driver/**",
+                    "/drivers/**",
                     "/location/**",
-                    "/matchmaking/**"
+                    "/matchmaking/**",
+                    "/dispatch/**",
+                    "/rides/*/start",
+                    "/rides/*/complete"
             ),
             "RIDER", Set.of(
                     "/users/**",
                     "/cab/**",
-                    "/matchmaking/**"
+                    "/rides",
+                    "/rides/*",
+                    "/rides/*/cancel",
+                    "/dispatch/**",
+                    "/matchmaking/**",
+                    "/riders/**"
             )
     );
 
-    public JwtGatewayFilter(JwtUtils jwtUtil) {
+    public JwtGatewayFilter(JwtUtils jwtUtil, ReactiveStringRedisTemplate redisTemplate) {
         this.jwtUtil = jwtUtil;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -67,24 +83,31 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange);
         }
 
-        // Extract data from JWT
-        Long userId = jwtUtil.extractUserId(token);
-        Set<String> roles = jwtUtil.extractRoles(token);
+        return redisTemplate.hasKey("blacklist:" + token)
+                .flatMap(isBlacklisted -> {
+                    if (Boolean.TRUE.equals(isBlacklisted)) {
+                        return unauthorized(exchange);
+                    }
 
-        // Check role-based permissions
-        if (!hasPermission(path, roles)) {
-            return forbidden(exchange);
-        }
+                    // Extract data from JWT
+                    Long userId = jwtUtil.extractUserId(token);
+                    Set<String> roles = jwtUtil.extractRoles(token);
 
-        // Add headers with user info
-        String rolesHeader = String.join(",", roles);
-        ServerHttpRequest mutatedRequest = exchange.getRequest()
-                .mutate()
-                .header("X-User-Id", String.valueOf(userId))
-                .header("X-User-Role", rolesHeader)
-                .build();
+                    // Check role-based permissions
+                    if (!hasPermission(path, roles)) {
+                        return forbidden(exchange);
+                    }
 
-        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                    // Add headers with user info
+                    String rolesHeader = String.join(",", roles);
+                    ServerHttpRequest mutatedRequest = exchange.getRequest()
+                            .mutate()
+                            .header("X-User-Id", String.valueOf(userId))
+                            .header("X-User-Role", rolesHeader)
+                            .build();
+
+                    return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                });
     }
 
     private boolean hasPermission(String path, Set<String> roles) {
@@ -115,8 +138,15 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             String prefix = allowedPath.substring(0, allowedPath.length() - 3);
             return requestPath.startsWith(prefix);
         }
-        // Exact match
-        return requestPath.startsWith(allowedPath);
+        if (allowedPath.contains("*")) {
+            String regex = allowedPath
+                    .replace(".", "\\.")
+                    .replace("**", ".*")
+                    .replace("*", "[^/]+");
+            return requestPath.matches("^" + regex + "$");
+        }
+        // Exact match for paths without wildcards.
+        return requestPath.equals(allowedPath);
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {

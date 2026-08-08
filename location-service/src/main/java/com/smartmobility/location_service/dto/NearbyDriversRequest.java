@@ -15,8 +15,10 @@ public class NearbyDriversRequest {
     private double lng;
 
     @Positive
+    @DecimalMax(value = "50.0", message = "radiusKm must not exceed 50km")
     private double radiusKm;
 
     @Positive
+    @Max(value = 200, message = "limit must not exceed 200")
     private int limit;
 }

@@ -16,6 +16,8 @@ public class InternalApiFilter implements GlobalFilter, Ordered {
 
         String path = exchange.getRequest().getPath().toString();
 
+        // Block every /internal/** route at the gateway.
+        // Internal access is expected to happen service-to-service, not from public clients.
         if (path.contains("/internal/")) {
             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
             return exchange.getResponse().setComplete();

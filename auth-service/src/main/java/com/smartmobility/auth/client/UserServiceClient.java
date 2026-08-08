@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 @FeignClient(name = "user-service")
 public interface UserServiceClient {
@@ -21,4 +22,7 @@ public interface UserServiceClient {
 
     @GetMapping("/internal/users/{userId}")
     ApiResponse<UserResponseDTO> findByUserId(@PathVariable("userId") Long userId);
+
+    @DeleteMapping("/internal/users/{userId}")
+    void deleteUser(@PathVariable("userId") Long userId);
 }

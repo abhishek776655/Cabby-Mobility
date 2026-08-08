@@ -2,7 +2,10 @@ package com.smartmobility.location_service;
 
 import com.smartmobility.location_service.exception.InvalidLocationException;
 import com.smartmobility.location_service.exception.LocationServiceException;
+import com.smartmobility.location_service.client.DriverAvailabilityClient;
 import com.smartmobility.location_service.repository.LocationRepository;
+import com.smartmobility.location_service.exception.ForbiddenAccessException;
+import com.smartmobility.location_service.security.DriverOwnershipGuard;
 import com.smartmobility.location_service.service.impl.LocationServiceImpl;
 import org.junit.jupiter.api.Test;
 
@@ -17,10 +20,16 @@ class LocationServiceImplTest {
     @Test
     void goOnlineStoresLocationAndMarksDriverOnline() {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
-        LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
+        FakeDriverServiceClient driverServiceClient = new FakeDriverServiceClient();
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                locationRepository,
+                driverServiceClient,
+                new DriverOwnershipGuard()
+        );
 
-        locationService.goOnline(42L, 28.7041, 77.1025);
+        locationService.goOnline(42L, 42L, 28.7041, 77.1025);
 
+        assertTrue(driverServiceClient.lastAvailable);
         assertEquals("42", locationRepository.lastUpsertDriverUserId);
         assertEquals(28.7041, locationRepository.lastLat);
         assertEquals(77.1025, locationRepository.lastLng);
@@ -29,7 +38,11 @@ class LocationServiceImplTest {
 
     @Test
     void getNearbyDriversRejectsInvalidRadius() {
-        LocationServiceImpl locationService = new LocationServiceImpl(new FakeLocationRepository());
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                new FakeLocationRepository(),
+                new FakeDriverServiceClient(),
+                new DriverOwnershipGuard()
+        );
 
         assertThrows(
                 InvalidLocationException.class,
@@ -41,7 +54,11 @@ class LocationServiceImplTest {
     void getNearbyDriversReturnsRepositoryResults() {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
         locationRepository.nearbyDrivers = List.of("42", "43");
-        LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                locationRepository,
+                new FakeDriverServiceClient(),
+                new DriverOwnershipGuard()
+        );
 
         List<Long> result = locationService.getNearbyDrivers(28.7041, 77.1025, 5.0, 10);
 
@@ -52,7 +69,11 @@ class LocationServiceImplTest {
     void getNearbyDrivers_returnsOnlyFromAvailableGeo() {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
         locationRepository.nearbyDrivers = List.of("42", "43");
-        LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                locationRepository,
+                new FakeDriverServiceClient(),
+                new DriverOwnershipGuard()
+        );
 
         List<Long> result = locationService.getNearbyDrivers(40.7128, -74.0060, 5.0, 10);
 
@@ -65,11 +86,45 @@ class LocationServiceImplTest {
     void updateDriverLocationWrapsRepositoryFailure() {
         FakeLocationRepository locationRepository = new FakeLocationRepository();
         locationRepository.failUpsert = true;
-        LocationServiceImpl locationService = new LocationServiceImpl(locationRepository);
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                locationRepository,
+                new FakeDriverServiceClient(),
+                new DriverOwnershipGuard()
+        );
 
         assertThrows(
                 LocationServiceException.class,
-                () -> locationService.updateDriverLocation(42L, 28.7041, 77.1025)
+                () -> locationService.updateDriverLocation(42L, 42L, 28.7041, 77.1025)
+        );
+    }
+
+    @Test
+    void goOfflineMarksDriverUnavailableInDriverService() {
+        FakeLocationRepository locationRepository = new FakeLocationRepository();
+        FakeDriverServiceClient driverServiceClient = new FakeDriverServiceClient();
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                locationRepository,
+                driverServiceClient,
+                new DriverOwnershipGuard()
+        );
+
+        locationService.goOffline(42L, 42L);
+
+        assertTrue(!driverServiceClient.lastAvailable);
+        assertEquals("42", locationRepository.lastOfflineDriverUserId);
+    }
+
+    @Test
+    void goOnlineRejectsDifferentCaller() {
+        LocationServiceImpl locationService = new LocationServiceImpl(
+                new FakeLocationRepository(),
+                new FakeDriverServiceClient(),
+                new DriverOwnershipGuard()
+        );
+
+        assertThrows(
+                ForbiddenAccessException.class,
+                () -> locationService.goOnline(42L, 7L, 28.7041, 77.1025)
         );
     }
 
@@ -79,6 +134,7 @@ class LocationServiceImplTest {
         private double lastLat;
         private double lastLng;
         private String lastOnlineDriverUserId;
+        private String lastOfflineDriverUserId;
         private boolean failUpsert;
         private List<String> nearbyDrivers = List.of();
 
@@ -99,11 +155,27 @@ class LocationServiceImplTest {
 
         @Override
         public void markDriverOffline(String driverUserId) {
+            this.lastOfflineDriverUserId = driverUserId;
         }
 
         @Override
         public List<String> findNearbyDrivers(double lat, double lng, double radiusKm, int limit) {
             return nearbyDrivers;
+        }
+
+        @Override
+        public void evictStaleDrivers() {
+            // no-op for these tests
+        }
+    }
+
+    private static class FakeDriverServiceClient implements DriverAvailabilityClient {
+
+        private boolean lastAvailable;
+
+        @Override
+        public void markAvailable(Long userId, boolean available) {
+            this.lastAvailable = available;
         }
     }
 }

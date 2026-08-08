@@ -148,7 +148,7 @@ Confirm the page explains these current facts:
 Current code/config defaults use auth 8091, cab 8089, location 8090, realtime 8095.
 Gateway routes /rides/** and /dispatch/** to Cab Service.
 Gateway routes /drivers/** to Driver Service.
-Gateway guards /location/internal/nearby for internal nearby lookup.
+Gateway guards /internal/nearby for internal nearby lookup.
 ```
 
 - [ ] **Step 3: Report completion**

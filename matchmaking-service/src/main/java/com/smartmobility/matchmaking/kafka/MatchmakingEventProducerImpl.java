@@ -16,6 +16,7 @@ public class MatchmakingEventProducerImpl implements MatchmakingEventProducer {
     private static final String DRIVER_ASSIGNED_TOPIC = "driver-assigned";
     private static final String MATCHMAKING_FAILED_TOPIC = "matchmaking-failed";
     private static final String ASSIGNMENT_REQUESTED_TOPIC = "assignment-requested";
+    private static final String DRIVER_ASSIGNMENT_FAILED_TOPIC = "driver-assignment-failed";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -36,5 +37,11 @@ public class MatchmakingEventProducerImpl implements MatchmakingEventProducer {
     public void publishMatchmakingFailed(MatchmakingFailedEvent event) {
         log.info("Publishing matchmaking failed event for ride: {}", event.getRideId());
         kafkaTemplate.send(MATCHMAKING_FAILED_TOPIC, event.getRideId().toString(), event);
+    }
+
+    @Override
+    public void publishDriverAssignmentFailed(com.smartmobility.matchmaking.event.DriverAssignmentFailedEvent event) {
+        log.info("Publishing driver assignment failed event for driver: {} reason: {}", event.getDriverUserId(), event.getReason());
+        kafkaTemplate.send(DRIVER_ASSIGNMENT_FAILED_TOPIC, event.getDriverUserId().toString(), event);
     }
 }

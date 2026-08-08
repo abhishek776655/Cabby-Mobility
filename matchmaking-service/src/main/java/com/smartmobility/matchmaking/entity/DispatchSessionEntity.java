@@ -19,6 +19,15 @@ public class DispatchSessionEntity {
     @Column(name = "rider_id", nullable = false)
     private Long riderUserId;
 
+    @Column(name = "pickup_latitude")
+    private Double pickupLatitude;
+
+    @Column(name = "pickup_longitude")
+    private Double pickupLongitude;
+
+    @Column(name = "pickup_location")
+    private String pickupLocation;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DispatchStatus status;
@@ -47,6 +56,12 @@ public class DispatchSessionEntity {
     public void setRideId(UUID rideId) { this.rideId = rideId; }
     public Long getRiderUserId() { return riderUserId; }
     public void setRiderUserId(Long riderUserId) { this.riderUserId = riderUserId; }
+    public Double getPickupLatitude() { return pickupLatitude; }
+    public void setPickupLatitude(Double pickupLatitude) { this.pickupLatitude = pickupLatitude; }
+    public Double getPickupLongitude() { return pickupLongitude; }
+    public void setPickupLongitude(Double pickupLongitude) { this.pickupLongitude = pickupLongitude; }
+    public String getPickupLocation() { return pickupLocation; }
+    public void setPickupLocation(String pickupLocation) { this.pickupLocation = pickupLocation; }
     public DispatchStatus getStatus() { return status; }
     public void setStatus(DispatchStatus status) { this.status = status; }
     public Long getCurrentDriverUserId() { return currentDriverUserId; }

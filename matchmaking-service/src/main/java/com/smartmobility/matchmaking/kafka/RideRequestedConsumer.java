@@ -1,20 +1,20 @@
 package com.smartmobility.matchmaking.kafka;
 
 import com.smartmobility.matchmaking.event.RideRequestedEvent;
-import com.smartmobility.matchmaking.service.MatchmakingService;
+import com.smartmobility.matchmaking.service.DispatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RideRequestedConsumer {
 
-    private final MatchmakingService matchmakingService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DispatchService dispatchService;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
             topics = "ride-requested",
@@ -25,7 +25,7 @@ public class RideRequestedConsumer {
         log.info("Received ride requested message: {}", message);
         try {
             RideRequestedEvent event = objectMapper.readValue(message, RideRequestedEvent.class);
-            matchmakingService.matchRide(event);
+            dispatchService.startDispatch(event);
         } catch (Exception e) {
             log.error("Error processing ride requested message: {}", message, e);
             throw new RuntimeException("Failed to process message", e);

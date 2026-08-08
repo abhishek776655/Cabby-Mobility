@@ -30,4 +30,59 @@ public class FallbackController {
                 )
         );
     }
+
+    @RequestMapping("/fallback/user")
+    public Mono<Map<String, Object>> userFallback() {
+        return Mono.just(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "User service temporarily unavailable"
+                )
+        );
+    }
+
+    @RequestMapping("/fallback/driver")
+    public Mono<Map<String, Object>> driverFallback() {
+        return Mono.just(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Driver service temporarily unavailable"
+                )
+        );
+    }
+
+    @RequestMapping("/fallback/location")
+    public Mono<Map<String, Object>> locationFallback() {
+        return Mono.just(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Location service temporarily unavailable"
+                )
+        );
+    }
+
+    @RequestMapping("/fallback/matchmaking")
+    public Mono<Map<String, Object>> matchmakingFallback() {
+        return Mono.just(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Matchmaking service temporarily unavailable"
+                )
+        );
+    }
+
+    @RequestMapping("/fallback/rider")
+    public Mono<Map<String, Object>> riderFallback() {
+        return Mono.just(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Rider service temporarily unavailable"
+                )
+        );
+    }
 }

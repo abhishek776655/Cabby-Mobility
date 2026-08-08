@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class DriverServiceImpl implements DriverService {
@@ -45,6 +48,13 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new DriverNotFoundException("Driver not found"));
 
         return DriverMapper.toDTO(entity);
+    }
+
+    @Override
+    public List<DriverResponseDTO> getDriversBatch(List<Long> userIds) {
+        return driverRepository.findAllByUserIdIn(userIds).stream()
+                .map(DriverMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -12,6 +12,9 @@ import java.util.UUID;
 @NoArgsConstructor
 public class DriverResponseRequest {
 
+    @NotNull(message = "Ride ID is required")
+    private UUID rideId;
+
     @NotNull(message = "Dispatch ID is required")
     private UUID dispatchId;
 

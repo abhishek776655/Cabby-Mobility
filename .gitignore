@@ -17,3 +17,12 @@ target/
 
 # Logs
 logs/
+*.
+.codex
+.agent
+.idea
+.superpowers
+.vscode
+openspec
+.tmp
+docs/superpowers

@@ -1,8 +1,17 @@
 package com.smartmobility.matchmaking.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.UUID;
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DriverResponseRequest {
 
     @NotNull
@@ -17,11 +26,4 @@ public class DriverResponseRequest {
     public enum DriverResponse {
         ACCEPT, REJECT
     }
-
-    public UUID getDispatchId() { return dispatchId; }
-    public void setDispatchId(UUID dispatchId) { this.dispatchId = dispatchId; }
-    public Long getDriverUserId() { return driverUserId; }
-    public void setDriverUserId(Long driverUserId) { this.driverUserId = driverUserId; }
-    public DriverResponse getResponse() { return response; }
-    public void setResponse(DriverResponse response) { this.response = response; }
 }

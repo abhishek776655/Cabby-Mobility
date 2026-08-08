@@ -32,6 +32,16 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(ForbiddenAccessException.class)
+    public ResponseEntity<ApiResponse<?>> handleForbidden(ForbiddenAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponseBuilder.error(
+                        HttpStatus.FORBIDDEN.value(),
+                        ex.getMessage(),
+                        ErrorCodes.FORBIDDEN
+                ));
+    }
+
     // 🔴 Validation errors
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidationException(

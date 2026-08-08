@@ -19,11 +19,12 @@ public class RideController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<RideResponseDTO>> createRide(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @Valid @RequestBody RideRequestDTO request) {
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(
-                        rideService.createRide(request),
+                        rideService.createRide(request, currentUserId),
                         "Ride created successfully"
                 )
         );
@@ -31,11 +32,12 @@ public class RideController {
 
     @GetMapping("/{rideId}")
     public ResponseEntity<ApiResponse<RideResponseDTO>> getRide(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @PathVariable UUID rideId) {
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(
-                        rideService.getRideById(rideId),
+                        rideService.getRideById(rideId, currentUserId),
                         "Ride fetched successfully"
                 )
         );
@@ -43,11 +45,12 @@ public class RideController {
 
     @PostMapping("/{rideId}/cancel")
     public ResponseEntity<ApiResponse<RideResponseDTO>> cancelRide(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @PathVariable UUID rideId) {
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(
-                        rideService.cancelRide(rideId),
+                        rideService.cancelRide(rideId, currentUserId),
                         "Ride cancelled successfully"
                 )
         );
@@ -55,11 +58,12 @@ public class RideController {
 
     @PostMapping("/{rideId}/start")
     public ResponseEntity<ApiResponse<RideResponseDTO>> startRide(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @PathVariable UUID rideId) {
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(
-                        rideService.startRide(rideId),
+                        rideService.startRide(rideId, currentUserId),
                         "Ride started successfully"
                 )
         );
@@ -67,17 +71,24 @@ public class RideController {
 
     @PostMapping("/{rideId}/complete")
     public ResponseEntity<ApiResponse<RideResponseDTO>> completeRide(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @PathVariable UUID rideId) {
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(
-                        rideService.completeRide(rideId),
+                        rideService.completeRide(rideId, currentUserId),
                         "Ride completed successfully"
                 )
         );
     }
     @PostMapping("/{id}/match")
-    public ResponseEntity<ApiResponse<RideResponseDTO>> match(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<RideResponseDTO>> match(
+            @RequestHeader(value = "X-User-Role", required = false) String rolesHeader,
+            @PathVariable UUID id) {
+
+        if (rolesHeader == null || !rolesHeader.contains("ADMIN")) {
+            throw new com.smartmobility.cab.exception.ForbiddenAccessException("Admin access required");
+        }
 
         return ResponseEntity.ok(
                 ApiResponseBuilder.success(

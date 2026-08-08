@@ -16,4 +16,14 @@ public class RedisOpsConfig {
     public SetOperations<String, String> setOps(RedisTemplate<String, String> redisTemplate) {
         return redisTemplate.opsForSet();
     }
+
+    @Bean
+    public ValueOperations<String, String> valueOps(RedisTemplate<String, String> redisTemplate) {
+        return redisTemplate.opsForValue();
+    }
+
+    @Bean
+    public ZSetOperations<String, String> zSetOps(RedisTemplate<String, String> redisTemplate) {
+        return redisTemplate.opsForZSet();
+    }
 }

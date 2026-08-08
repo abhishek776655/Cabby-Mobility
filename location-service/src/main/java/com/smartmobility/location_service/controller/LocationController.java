@@ -13,19 +13,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/location")
 @RequiredArgsConstructor
 public class LocationController {
 
     private final LocationService locationService;
 
     // 1️⃣ Driver goes ONLINE
-    @PostMapping("/driver/online")
+    @PostMapping("/location/driver/online")
     public ResponseEntity<ApiResponse<Void>> goOnline(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @Valid @RequestBody UpdateLocationRequest request) {
 
         locationService.goOnline(
                 request.getDriverUserId(),
+                currentUserId,
                 request.getLat(),
                 request.getLng()
         );
@@ -34,22 +35,25 @@ public class LocationController {
     }
 
     // 2️⃣ Driver goes OFFLINE
-    @PostMapping("/driver/offline")
+    @PostMapping("/location/driver/offline")
     public ResponseEntity<ApiResponse<Void>> goOffline(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @RequestParam Long driverUserId) {
 
-        locationService.goOffline(driverUserId);
+        locationService.goOffline(driverUserId, currentUserId);
 
         return ResponseEntity.ok(ApiResponseBuilder.success(null, "Driver is offline"));
     }
 
     // 3️⃣ Location update
-    @PostMapping("/driver/update")
+    @PostMapping("/location/driver/update")
     public ResponseEntity<ApiResponse<Void>> updateLocation(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @Valid @RequestBody UpdateLocationRequest request) {
 
         locationService.updateDriverLocation(
                 request.getDriverUserId(),
+                currentUserId,
                 request.getLat(),
                 request.getLng()
         );
@@ -57,7 +61,7 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponseBuilder.success(null, "Location updated"));
     }
 
-// 4️⃣ Nearby drivers (INTERNAL ONLY - for matchmaking service)
+    // 4️⃣ Nearby drivers (INTERNAL ONLY - for matchmaking service)
     @PostMapping("/internal/nearby")
     public ResponseEntity<ApiResponse<List<Long>>> getNearbyDrivers(
             @Valid @RequestBody NearbyDriversRequest request) {

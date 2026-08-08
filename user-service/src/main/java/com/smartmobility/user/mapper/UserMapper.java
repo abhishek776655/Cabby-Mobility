@@ -10,9 +10,8 @@ import java.time.LocalDateTime;
 @Component
 public class UserMapper {
 
-    public UserEntity toEntity(CreateUserDTO dto, Long userId) {
+    public UserEntity toEntity(CreateUserDTO dto) {
         return UserEntity.builder()
-                .id(userId)
                 .email(dto.getEmail())
                 .roles(dto.getRoles())
                 .createdAt(LocalDateTime.now())

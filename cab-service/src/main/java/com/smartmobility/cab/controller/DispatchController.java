@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -27,13 +28,16 @@ public class DispatchController {
 
     @PostMapping("/driver-response")
     public ResponseEntity<ApiResponse<Void>> handleDriverResponse(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @Valid @RequestBody DriverResponseRequest request) {
 
         boolean accepted = request.getResponse() == DriverResponseRequest.DriverResponse.ACCEPT;
         dispatchService.handleDriverResponse(
                 request.getDispatchId(),
                 request.getDriverUserId(),
-                accepted
+                accepted,
+                request.getRideId(),
+                currentUserId
         );
 
         String message = accepted ? "Assignment accepted" : "Assignment rejected";
@@ -42,17 +46,19 @@ public class DispatchController {
 
     @PostMapping("/cancel")
     public ResponseEntity<ApiResponse<Void>> cancelDispatch(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @Valid @RequestBody CancelDispatchRequest request) {
 
-        dispatchService.cancelDispatch(request.getRideId(), request.getReason());
+        dispatchService.cancelDispatch(request.getRideId(), request.getReason(), currentUserId);
         return ResponseEntity.ok(ApiResponseBuilder.success(null, "Dispatch cancelled"));
     }
 
     @GetMapping("/{rideId}")
     public ResponseEntity<ApiResponse<DispatchStatusResponse>> getDispatchStatus(
+            @RequestHeader("X-User-Id") Long currentUserId,
             @PathVariable UUID rideId) {
 
-        return dispatchService.getDispatchStatus(rideId)
+        return dispatchService.getDispatchStatus(rideId, currentUserId)
                 .map(response -> ResponseEntity.ok(
                         ApiResponseBuilder.success(response, "Dispatch status fetched")
                 ))

@@ -3,3 +3,4 @@ CREATE DATABASE auth_db;
 CREATE DATABASE cab_db;
 CREATE DATABASE driver_db;
 CREATE DATABASE matchmaking_db;
+CREATE DATABASE rider_db;

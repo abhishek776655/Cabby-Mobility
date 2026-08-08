@@ -213,7 +213,7 @@ Value: driverId → lat/lng (only online drivers)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/location/internal/nearby` | POST | Find nearby drivers (not exposed to external clients) |
+| `/internal/nearby` | POST | Find nearby drivers (not exposed to external clients) |
 
 
 

@@ -1,0 +1,4 @@
+ALTER TABLE dispatch_sessions
+    ADD COLUMN IF NOT EXISTS pickup_latitude DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS pickup_longitude DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS pickup_location VARCHAR(255);

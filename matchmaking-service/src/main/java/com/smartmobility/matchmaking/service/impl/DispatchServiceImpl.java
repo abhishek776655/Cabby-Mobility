@@ -43,18 +43,13 @@ public class DispatchServiceImpl implements DispatchService {
     private final DispatchCacheService cacheService;
     private final MatchmakingEventProducer eventProducer;
     private final ObjectMapper objectMapper;
+    private final MatchmakingProperties properties;
 
     @Value("${matchmaking.default-radius-km:5}")
     private double discoveryRadiusKm;
 
     @Value("${matchmaking.default-limit:10}")
     private int discoveryLimit;
-
-    private MatchmakingProperties properties;
-
-    public void setProperties(MatchmakingProperties properties) {
-        this.properties = properties;
-    }
 
     @Override
     @Transactional
@@ -67,6 +62,8 @@ public class DispatchServiceImpl implements DispatchService {
         List<Long> nearbyDriverUserIds = locationClient.findNearbyDrivers(
             event.getPickupLatitude(), event.getPickupLongitude(),
             discoveryRadiusKm, discoveryLimit);
+
+        log.info("Nearby drivers for ride {}: {}", event.getRideId(), nearbyDriverUserIds);
 
         if (nearbyDriverUserIds.isEmpty()) {
             publishNoDriverFound(event, "NO_DRIVER_AVAILABLE");
@@ -82,12 +79,15 @@ public class DispatchServiceImpl implements DispatchService {
 
         List<Long> rankedDriverUserIds = rankDrivers(eligibleDriverUserIds, event.getPickupLatitude(), event.getPickupLongitude());
 
-        Instant expiresAt = Instant.now().plus(30, ChronoUnit.SECONDS);
+        Instant expiresAt = Instant.now().plus(properties.getDispatchTimeoutSeconds(), ChronoUnit.SECONDS);
         
         DispatchSessionEntity session = new DispatchSessionEntity();
         session.setDispatchId(UUID.randomUUID());
         session.setRideId(event.getRideId());
         session.setRiderUserId(event.getRiderUserId());
+        session.setPickupLatitude(event.getPickupLatitude());
+        session.setPickupLongitude(event.getPickupLongitude());
+        session.setPickupLocation(event.getPickupLocation());
         session.setStatus(DispatchStatus.SEARCHING);
         session.setCurrentDriverUserId(null);
         session.setRetryCount(0);
@@ -132,8 +132,35 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
+    @Override
+    @Transactional
+    public void handleDispatchTimeout(UUID dispatchId) {
+        DispatchSessionEntity session = dispatchRepository.findById(dispatchId)
+            .orElseThrow(() -> new DispatchNotFoundException("Dispatch not found: " + dispatchId));
+
+        if (session.getCurrentDriverUserId() != null) {
+            reservationService.releaseReservation(
+                session.getCurrentDriverUserId(),
+                session.getDispatchId().toString());
+        }
+
+        recordAttempt(session.getDispatchId(), session.getCurrentDriverUserId(), null, AttemptStatus.TIMEOUT, "DRIVER_TIMEOUT");
+
+        List<Long> remaining = parseCandidates(session.getRemainingCandidates());
+        if (remaining.isEmpty()) {
+            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            return;
+        }
+
+        retryWithNextCandidate(session, remaining);
+    }
+
     private void handleAcceptance(DispatchSessionEntity session, Long driverUserId) {
-        reservationService.releaseReservation(driverUserId, session.getDispatchId().toString());
+        // Do NOT release the reservation here: the driver is now on-trip, not free. Extend
+        // its TTL as a safety net; ride-completed/ride-cancelled explicitly releases it, this
+        // just guards against that event never arriving.
+        reservationService.extendReservation(
+                driverUserId, session.getDispatchId().toString(), properties.getOnTripReservationSeconds());
 
         session.setStatus(DispatchStatus.ASSIGNED);
         session.setUpdatedAt(Instant.now());
@@ -187,9 +214,11 @@ public class DispatchServiceImpl implements DispatchService {
             return;
         }
 
+        Instant retryExpiresAt = Instant.now().plus(properties.getDispatchTimeoutSeconds(), ChronoUnit.SECONDS);
         session.setStatus(DispatchStatus.RETRYING);
         session.setCurrentDriverUserId(nextDriver);
         session.setRetryCount(session.getRetryCount() + 1);
+        session.setExpiresAt(retryExpiresAt);
         
         try {
             session.setRemainingCandidates(objectMapper.writeValueAsString(nextList));
@@ -201,9 +230,10 @@ public class DispatchServiceImpl implements DispatchService {
         recordAttempt(session.getDispatchId(), nextDriver, null, AttemptStatus.RESERVED, null);
 
         log.info("Retry: Assignment requested to driver {} for ride {}", nextDriver, session.getRideId());
+        publishAssignmentRequested(session, nextDriver);
 
         cacheService.saveDispatchState(session.getDispatchId().toString(),
-            DispatchStatus.ASSIGNMENT_SENT.name(), nextDriver, session.getExpiresAt().toEpochMilli());
+            DispatchStatus.ASSIGNMENT_SENT.name(), nextDriver, retryExpiresAt.toEpochMilli());
     }
 
     private void completeWithFailure(DispatchSessionEntity session, String reason) {
@@ -315,22 +345,28 @@ public class DispatchServiceImpl implements DispatchService {
 
         recordAttempt(session.getDispatchId(), candidateId, null, AttemptStatus.RESERVED, null);
 
+        log.info("Assignment requested to driver {} for ride {}", candidateId, session.getRideId());
+        publishAssignmentRequested(session, candidateId);
+
+        cacheService.saveDispatchState(session.getDispatchId().toString(),
+            DispatchStatus.ASSIGNMENT_SENT.name(), candidateId, session.getExpiresAt().toEpochMilli());
+    }
+
+    private void publishAssignmentRequested(DispatchSessionEntity session, Long driverUserId) {
         AssignmentRequestedEvent assignmentEvent = AssignmentRequestedEvent.builder()
             .eventId(UUID.randomUUID().toString())
             .dispatchId(session.getDispatchId())
             .rideId(session.getRideId())
-            .driverUserId(candidateId)
-            .pickupLatitude(event.getPickupLatitude())
-            .pickupLongitude(event.getPickupLongitude())
-            .pickupLocation(event.getPickupLocation())
+            .driverUserId(driverUserId)
+            .pickupLatitude(session.getPickupLatitude())
+            .pickupLongitude(session.getPickupLongitude())
+            .pickupLocation(session.getPickupLocation())
             .expiresAt(session.getExpiresAt())
             .build();
-        
-        log.info("Assignment requested to driver {} for ride {}", candidateId, session.getRideId());
-        eventProducer.publishAssignmentRequested(assignmentEvent);
 
-        cacheService.saveDispatchState(session.getDispatchId().toString(),
-            DispatchStatus.ASSIGNMENT_SENT.name(), candidateId, session.getExpiresAt().toEpochMilli());
+        eventProducer.publishAssignmentRequested(assignmentEvent);
+        log.info("Published assignment requested for ride {} dispatch {} driver {}",
+            session.getRideId(), session.getDispatchId(), driverUserId);
     }
 
     private void recordAttempt(UUID dispatchId, Long driverUserId, Double score, 
@@ -339,10 +375,18 @@ public class DispatchServiceImpl implements DispatchService {
         attempt.setRideId(dispatchId);
         attempt.setDriverUserId(driverUserId);
         attempt.setScore(score);
-        attempt.setStatus(AssignmentStatus.valueOf(status.name()));
+        attempt.setStatus(mapAttemptStatus(status));
         attempt.setFailureReason(failureReason);
         
         attemptRepository.save(attempt);
+    }
+
+    private AssignmentStatus mapAttemptStatus(AttemptStatus status) {
+        return switch (status) {
+            case RESERVED, ASSIGNMENT_SENT -> AssignmentStatus.CONSIDERED;
+            case ACCEPTED -> AssignmentStatus.ASSIGNED;
+            case REJECTED, TIMEOUT, FAILED -> AssignmentStatus.FAILED;
+        };
     }
 
     private void publishNoDriverFound(RideRequestedEvent event, String reason) {

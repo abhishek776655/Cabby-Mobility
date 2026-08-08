@@ -2,8 +2,10 @@ package com.smartmobility.location_service.service.impl;
 
 import com.smartmobility.location_service.exception.InvalidLocationException;
 import com.smartmobility.location_service.exception.LocationServiceException;
+import com.smartmobility.location_service.client.DriverAvailabilityClient;
 import com.smartmobility.location_service.repository.LocationRepository;
 import com.smartmobility.location_service.service.LocationService;
+import com.smartmobility.location_service.security.DriverOwnershipGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,14 +19,18 @@ public class LocationServiceImpl implements LocationService {
     private static final int MAX_LIMIT = 50;
 
     private final LocationRepository locationRepository;
+    private final DriverAvailabilityClient driverServiceClient;
+    private final DriverOwnershipGuard ownershipGuard;
 
     @Override
-    public void goOnline(Long driverUserId, double lat, double lng) {
+    public void goOnline(Long driverUserId, Long currentUserId, double lat, double lng) {
         validateDriverUserId(driverUserId);
+        ownershipGuard.assertSelf(driverUserId, currentUserId);
         validateCoordinates(lat, lng);
 
         try {
             String driverUserIdKey = driverUserId.toString();
+            driverServiceClient.markAvailable(driverUserId, true);
             locationRepository.upsertDriverLocation(driverUserIdKey, lat, lng);
             locationRepository.markDriverOnline(driverUserIdKey);
         } catch (RuntimeException ex) {
@@ -33,10 +39,12 @@ public class LocationServiceImpl implements LocationService {
     }
 
     @Override
-    public void goOffline(Long driverUserId) {
+    public void goOffline(Long driverUserId, Long currentUserId) {
         validateDriverUserId(driverUserId);
+        ownershipGuard.assertSelf(driverUserId, currentUserId);
 
         try {
+            driverServiceClient.markAvailable(driverUserId, false);
             locationRepository.markDriverOffline(driverUserId.toString());
         } catch (RuntimeException ex) {
             throw new LocationServiceException("Failed to mark driver offline", ex);
@@ -44,8 +52,9 @@ public class LocationServiceImpl implements LocationService {
     }
 
     @Override
-    public void updateDriverLocation(Long driverUserId, double lat, double lng) {
+    public void updateDriverLocation(Long driverUserId, Long currentUserId, double lat, double lng) {
         validateDriverUserId(driverUserId);
+        ownershipGuard.assertSelf(driverUserId, currentUserId);
         validateCoordinates(lat, lng);
 
         try {

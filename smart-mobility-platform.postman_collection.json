@@ -1,0 +1,1511 @@
+{
+  "info": {
+    "_postman_id": "7f654b0c-60e5-4f40-8488-dc71e06d9a9f",
+    "name": "Smart Mobility Platform",
+    "description": "Comprehensive API collection for testing the event-driven ride-hailing microservices platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Authentication & Onboarding",
+      "description": "User registration and login for RIDER and DRIVER roles, capturing JWTs automatically.",
+      "item": [
+        {
+          "name": "Rider Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
+                  "    console.log(\"Rider Token & ID updated from registration\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rider_email}}\",\n  \"password\": \"{{rider_password}}\",\n  \"roles\": [\"RIDER\"]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rider Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
+                  "    console.log(\"Rider Token & ID updated from login\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rider_email}}\",\n  \"password\": \"{{rider_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
+                  "    console.log(\"Driver Token & ID updated from registration\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{driver_email}}\",\n  \"password\": \"{{driver_password}}\",\n  \"roles\": [\"DRIVER\"]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
+                  "    console.log(\"Driver Token & ID updated from login\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{driver_email}}\",\n  \"password\": \"{{driver_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Driver Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Driver profile created or exists\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{driver_user_id}},\n  \"vehicleDetails\": \"Prime Sedan - MH-12-PQ-9876\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/driver/drivers",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "driver",
+                "drivers"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02. Driver Operations",
+      "description": "APIs related to driver availability state and real-time location indexing via Redis.",
+      "item": [
+        {
+          "name": "Driver Go Online",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverUserId\": {{driver_user_id}},\n  \"lat\": 28.6139,\n  \"lng\": 77.2090\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/location/driver/online",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "location",
+                "driver",
+                "online"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Update Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverUserId\": {{driver_user_id}},\n  \"lat\": 28.6145,\n  \"lng\": 77.2095\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/location/driver/update",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "location",
+                "driver",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Go Offline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/location/driver/offline?driverUserId={{driver_user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "location",
+                "driver",
+                "offline"
+              ],
+              "query": [
+                {
+                  "key": "driverUserId",
+                  "value": "{{driver_user_id}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. Ride Orchestration",
+      "description": "Rider booking actions and state transitions of the ride state machine (REQUESTED -> DRIVER_ASSIGNED -> ONGOING -> COMPLETED).",
+      "item": [
+        {
+          "name": "Create Ride Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ride created successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.id);",
+                  "    pm.collectionVariables.set(\"active_pickup_lat\", 28.6139);",
+                  "    pm.collectionVariables.set(\"active_pickup_lng\", 77.2090);",
+                  "    console.log(\"Saved Active Ride ID and Pickup Coordinates\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"riderUserId\": {{rider_user_id}},\n  \"pickupLocation\": \"Connaught Place, New Delhi\",\n  \"dropLocation\": \"IG International Airport, Terminal 3\",\n  \"pickupLatitude\": 28.6139,\n  \"pickupLongitude\": 77.2090,\n  \"dropLatitude\": 28.5562,\n  \"dropLongitude\": 77.1000\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/rides",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Ride Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Ride (Driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/start",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Ride (Driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/complete",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "complete"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Ride (Rider)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/cancel",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Dispatch & Matchmaking",
+      "description": "APIs coordinating driver matching responses and active dispatch session states.",
+      "item": [
+        {
+          "name": "Get Dispatch Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Dispatch status fetched\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.dispatchId) {",
+                  "    pm.collectionVariables.set(\"active_dispatch_id\", jsonData.data.dispatchId);",
+                  "    console.log(\"Saved Active Dispatch ID: \" + jsonData.data.dispatchId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Accept Dispatch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dispatchId\": \"{{active_dispatch_id}}\",\n  \"driverUserId\": {{driver_user_id}},\n  \"response\": \"ACCEPT\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/driver-response",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "driver-response"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Reject Dispatch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dispatchId\": \"{{active_dispatch_id}}\",\n  \"driverUserId\": {{driver_user_id}},\n  \"response\": \"REJECT\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/driver-response",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "driver-response"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Dispatch Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": \"{{active_ride_id}}\",\n  \"reason\": \"Rider changed their mind\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/cancel",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05. Internal & Microservice-Direct APIs",
+      "description": "APIs that go directly to microservice ports, bypassing the gateway and standard authentication restrictions for advanced developer debugging.",
+      "item": [
+        {
+          "name": "Direct User Service - Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"direct_user@test.com\",\n  \"phone\": \"+919988776655\",\n  \"firstName\": \"Direct\",\n  \"lastName\": \"User\",\n  \"roles\": [\"RIDER\"]\n}"
+            },
+            "url": {
+              "raw": "{{user_service_url}}/internal/users",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "internal",
+                "users"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct User Service - Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_service_url}}/internal/users/{{rider_user_id}}",
+              "host": [
+                "{{user_service_url}}"
+              ],
+              "path": [
+                "internal",
+                "users",
+                "{{rider_user_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct Location Service - Nearby Drivers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-Service",
+                "value": "matchmaking-service"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 28.6139,\n  \"lng\": 77.2090,\n  \"radiusKm\": 5.0,\n  \"limit\": 5\n}"
+            },
+            "url": {
+              "raw": "{{location_service_url}}/location/internal/nearby",
+              "host": [
+                "{{location_service_url}}"
+              ],
+              "path": [
+                "location",
+                "internal",
+                "nearby"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct Matchmaking - Get Dispatch Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{matchmaking_service_url}}/internal/dispatch/{{active_ride_id}}",
+              "host": [
+                "{{matchmaking_service_url}}"
+              ],
+              "path": [
+                "internal",
+                "dispatch",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06. E2E Happy Path Ride Flow",
+      "description": "Pre-configured flow for the Postman Collection Runner. Executes all operations sequentially, passing tokens, coordinates, dispatch states, and ride states seamlessly without manual steps.",
+      "item": [
+        {
+          "name": "Step 01 - Register Rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Rider registered successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider.e2e.{{$randomInt}}@test.com\",\n  \"password\": \"riderPassword123\",\n  \"roles\": [\"RIDER\"]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 02 - Register Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Driver registered successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver.e2e.{{$randomInt}}@test.com\",\n  \"password\": \"driverPassword123\",\n  \"roles\": [\"DRIVER\"]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 03 - Create Driver Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Driver profile created successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{driver_user_id}},\n  \"vehicleDetails\": \"Prime Sedan - E2E-TEST\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/driver/drivers",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "driver",
+                "drivers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 04 - Driver Goes Online",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Driver went online\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverUserId\": {{driver_user_id}},\n  \"lat\": 28.6139,\n  \"lng\": 77.2090\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/location/driver/online",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "location",
+                "driver",
+                "online"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 05 - Rider Requests Ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ride requested successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.id);",
+                  "    pm.collectionVariables.set(\"active_pickup_lat\", 28.6139);",
+                  "    pm.collectionVariables.set(\"active_pickup_lng\", 77.2090);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"riderUserId\": {{rider_user_id}},\n  \"pickupLocation\": \"Connaught Place, New Delhi\",\n  \"dropLocation\": \"Airport Terminal 3\",\n  \"pickupLatitude\": 28.6139,\n  \"pickupLongitude\": 77.2090,\n  \"dropLatitude\": 28.5562,\n  \"dropLongitude\": 77.1000\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/rides",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 06 - Get Dispatch Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Dispatch session fetched\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.dispatchId).to.exist;",
+                  "    pm.collectionVariables.set(\"active_dispatch_id\", jsonData.data.dispatchId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 07 - Driver Accepts Dispatch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Dispatch accepted by driver\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dispatchId\": \"{{active_dispatch_id}}\",\n  \"driverUserId\": {{driver_user_id}},\n  \"response\": \"ACCEPT\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/dispatch/driver-response",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dispatch",
+                "driver-response"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 08 - Verify Ride Status - MATCHED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ride moves to MATCHED/ACCEPTED\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.be.oneOf([\"ACCEPTED\", \"DRIVER_ASSIGNED\", \"MATCHING\"]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 09 - Driver Starts Ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ride successfully started\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.be.oneOf([\"STARTED\", \"ONGOING\"]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/start",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 10 - Driver Completes Ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ride successfully completed\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.equal(\"COMPLETED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/complete",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "complete"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 11 - Driver Goes Offline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Driver offline successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/location/driver/offline?driverUserId={{driver_user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "location",
+                "driver",
+                "offline"
+              ],
+              "query": [
+                {
+                  "key": "driverUserId",
+                  "value": "{{driver_user_id}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07. Real-Time Simulator",
+      "description": "Background simulation for generating real-time location uploads for 10 drivers simultaneously near the rider's pickup location.",
+      "item": [
+        {
+          "name": "Simulate 10 Drivers Polling",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Start driver location update simulator",
+                  "if (!pm.collectionVariables.get(\"simulator_interval_id\")) {",
+                  "    console.log(\"[Simulator] Starting 10-Driver Simulator (3s updates)\");",
+                  "    pm.collectionVariables.set(\"simulator_active\", \"true\");",
+                  "    ",
+                  "    // We get rider's coordinates (default to Connaught Place if empty)",
+                  "    var rider_lat = parseFloat(pm.collectionVariables.get(\"active_pickup_lat\") || \"28.6139\");",
+                  "    var rider_lng = parseFloat(pm.collectionVariables.get(\"active_pickup_lng\") || \"77.2090\");",
+                  "    ",
+                  "    // Let's store starting coordinates for 10 drivers",
+                  "    var drivers = [];",
+                  "    for (var i = 1; i <= 10; i++) {",
+                  "        var driverId = 2000 + i;",
+                  "        // Generate random offset within 1 km (approx +/- 0.009 deg)",
+                  "        var offsetLat = (Math.random() - 0.5) * 0.018;",
+                  "        var offsetLng = (Math.random() - 0.5) * 0.018;",
+                  "        drivers.push({",
+                  "            id: driverId,",
+                  "            lat: rider_lat + offsetLat,",
+                  "            lng: rider_lng + offsetLng",
+                  "        });",
+                  "    }",
+                  "    ",
+                  "    pm.collectionVariables.set(\"simulated_drivers\", JSON.stringify(drivers));",
+                  "    ",
+                  "    var intervalId = setInterval(function () {",
+                  "        var active = pm.collectionVariables.get(\"simulator_active\");",
+                  "        if (active !== \"true\") {",
+                  "            console.log(\"[Simulator] Stopping 10-Driver Simulator\");",
+                  "            clearInterval(intervalId);",
+                  "            pm.collectionVariables.set(\"simulator_interval_id\", \"\");",
+                  "            return;",
+                  "        }",
+                  "        ",
+                  "        var currentDrivers = JSON.parse(pm.collectionVariables.get(\"simulated_drivers\"));",
+                  "        var rider_lat = parseFloat(pm.collectionVariables.get(\"active_pickup_lat\") || \"28.6139\");",
+                  "        var rider_lng = parseFloat(pm.collectionVariables.get(\"active_pickup_lng\") || \"77.2090\");",
+                  "        ",
+                  "        console.log(\"[Simulator] Polling locations for 10 drivers...\");",
+                  "        ",
+                  "        currentDrivers.forEach(function (driver) {",
+                  "            // Apply a small random walk offset (up to ~50 meters: +/- 0.0005 deg)",
+                  "            driver.lat += (Math.random() - 0.5) * 0.001;",
+                  "            driver.lng += (Math.random() - 0.5) * 0.001;",
+                  "            ",
+                  "            // Limit distance to rider to ~1.5 km (0.0135 deg) to keep them close (Random Walk)",
+                  "            var diffLat = driver.lat - rider_lat;",
+                  "            var diffLng = driver.lng - rider_lng;",
+                  "            if (Math.abs(diffLat) > 0.0135) driver.lat = rider_lat + (Math.sign(diffLat) * 0.0135);",
+                  "            if (Math.abs(diffLng) > 0.0135) driver.lng = rider_lng + (Math.sign(diffLng) * 0.0135);",
+                  "            ",
+                  "            // POST request to location service via gateway",
+                  "            var url = pm.collectionVariables.get(\"gateway_url\") + \"/location/driver/update\";",
+                  "            var token = pm.collectionVariables.get(\"driver_token\");",
+                  "            ",
+                  "            var requestPayload = {",
+                  "                url: url,",
+                  "                method: \"POST\",",
+                  "                header: {",
+                  "                    \"Content-Type\": \"application/json\",",
+                  "                    \"Authorization\": \"Bearer \" + token",
+                  "                },",
+                  "                body: {",
+                  "                    mode: \"raw\",",
+                  "                    raw: JSON.stringify({",
+                  "                        driverUserId: driver.id,",
+                  "                        lat: parseFloat(driver.lat.toFixed(6)),",
+                  "                        lng: parseFloat(driver.lng.toFixed(6))",
+                  "                    })",
+                  "                }",
+                  "            };",
+                  "            ",
+                  "            pm.sendRequest(requestPayload, function (err, res) {",
+                  "                if (err) {",
+                  "                    console.error(\"[Simulator] Error updating driver \" + driver.id + \":\", err);",
+                  "                } else {",
+                  "                    console.log(\"[Simulator] Driver \" + driver.id + \" updated to: (\" + driver.lat.toFixed(6) + \", \" + driver.lng.toFixed(6) + \")\");",
+                  "                }",
+                  "            });",
+                  "        });",
+                  "        ",
+                  "        // Save coordinates back",
+                  "        pm.collectionVariables.set(\"simulated_drivers\", JSON.stringify(currentDrivers));",
+                  "        ",
+                  "    }, 3000);",
+                  "    ",
+                  "    // Save interval ID so we can stop it if we want",
+                  "    pm.collectionVariables.set(\"simulator_interval_id\", intervalId.toString());",
+                  "} else {",
+                  "    console.log(\"[Simulator] Simulator is already running! If you want to stop it, set variable 'simulator_active' to 'false'.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Simulator session initiated\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stop 10-Driver Simulator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set(\"simulator_active\", \"false\");",
+                  "console.log(\"[Simulator] Dispatched stop command to background interval\");",
+                  "pm.test(\"Simulator stopped successfully\", function () {",
+                  "    pm.expect(pm.collectionVariables.get(\"simulator_active\")).to.equal(\"false\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "auth_service_url",
+      "value": "http://localhost:8091",
+      "type": "string"
+    },
+    {
+      "key": "user_service_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "cab_service_url",
+      "value": "http://localhost:8089",
+      "type": "string"
+    },
+    {
+      "key": "driver_service_url",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "location_service_url",
+      "value": "http://localhost:8090",
+      "type": "string"
+    },
+    {
+      "key": "matchmaking_service_url",
+      "value": "http://localhost:8087",
+      "type": "string"
+    },
+    {
+      "key": "rider_email",
+      "value": "rider@test.com",
+      "type": "string"
+    },
+    {
+      "key": "rider_password",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "driver_email",
+      "value": "driver@test.com",
+      "type": "string"
+    },
+    {
+      "key": "driver_password",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "rider_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rider_user_id",
+      "value": "1001",
+      "type": "string"
+    },
+    {
+      "key": "driver_user_id",
+      "value": "2002",
+      "type": "string"
+    },
+    {
+      "key": "active_ride_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "active_dispatch_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "active_pickup_lat",
+      "value": "28.6139",
+      "type": "string"
+    },
+    {
+      "key": "active_pickup_lng",
+      "value": "77.2090",
+      "type": "string"
+    },
+    {
+      "key": "simulated_drivers",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "simulator_active",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "simulator_interval_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -61,6 +61,57 @@ cd eureka-service && mvn spring-boot:run
 # Import as Maven projects and run each service
 ```
 
+### Pressure Testing
+
+To intentionally constrain the Java services and overfill them with a small number of simulated users, use the pressure Compose overlay and the parallel simulator runner:
+
+```bash
+cd docker
+docker compose -f docker-compose.yml -f docker-compose.pressure.yml up -d
+```
+
+```bash
+node scripts/load-test-scenarios.mjs --scenarios 4 --duration-ms 60000
+```
+
+The runner first warms up auth accounts sequentially, then launches the ride scenarios in parallel while reusing the warmed auth session state. That reduces auth-service noise and makes the pressure test much smoother.
+
+Open these while the test is running:
+
+- Grafana: `http://localhost:3000` (admin / `admin`, unless you override `GRAFANA_ADMIN_PASSWORD`)
+- Prometheus: `http://localhost:9090`
+- cAdvisor: `http://localhost:8086`
+- Dashboard: `Smart Mobility Overview`
+
+### Random Ride Load Simulator
+
+If you want one autonomous scenario that keeps creating new rides, randomly accepts or rejects driver assignments, and prints live activity counts in the terminal, use:
+
+```bash
+node scripts/simulate-random-ride-load.mjs run \
+  --gateway-url http://localhost:8080 \
+  --run-id demo-random-load \
+  --riders 4 \
+  --driver-count 12 \
+  --active-driver-count 6 \
+  --accept-probability 0.7
+```
+
+This script keeps the load flowing by:
+- booting multiple riders and a shared driver pool
+- moving the active drivers around the pickup area
+- auto-accepting or auto-rejecting each assignment with the configured probability
+- starting a new ride immediately after the previous one completes
+- printing a summary like `activeRides=4 activeRiders=4 activeDrivers=12`
+
+Add `--dashboard` if you want a fixed terminal view that redraws in place instead of printing every event line.
+
+You can also use the interactive launcher:
+
+```bash
+./scripts/run-random-ride-load.sh
+```
+
 ### Service Ports
 
 | Service | Port |
@@ -82,7 +133,9 @@ cd eureka-service && mvn spring-boot:run
 ### Ride Lifecycle
 
 ```
-REQUESTED → MATCHED → ACCEPTED → STARTED → COMPLETED → CANCELLED
+MATCHING → DRIVER_ASSIGNED → ONGOING → COMPLETED → CANCELLED
+
+MATCHING → NO_DRIVER_AVAILABLE
 ```
 
 ### Real-time Communication
@@ -96,6 +149,7 @@ REQUESTED → MATCHED → ACCEPTED → STARTED → COMPLETED → CANCELLED
 Kafka topics for async communication:
 - `ride-requested` - Trigger matching
 - `driver-assigned` - Driver matched
+- `matchmaking-failed` - No driver available
 - `driver-location-events` - Real-time location
 - `assignment-requested` - Driver assignment notification
 
@@ -162,7 +216,7 @@ POST /location/driver/offline
 POST /location/driver/update
 ```
 
-> **Note:** `/location/internal/nearby` is internal-only (used by Matchmaking Service)
+> **Note:** `/internal/nearby` is internal-only (used by Matchmaking Service)
 
 ### WebSocket
 ```

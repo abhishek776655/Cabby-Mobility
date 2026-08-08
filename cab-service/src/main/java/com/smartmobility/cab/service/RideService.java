@@ -7,9 +7,9 @@ import java.util.UUID;
 
 public interface RideService {
 
-    RideResponseDTO createRide(RideRequestDTO request);
+    RideResponseDTO createRide(RideRequestDTO request, Long currentUserId);
 
-    RideResponseDTO getRideById(UUID rideId);
+    RideResponseDTO getRideById(UUID rideId, Long currentUserId);
 
     RideResponseDTO matchRide(UUID rideId);
 
@@ -17,10 +17,10 @@ public interface RideService {
 
     void handleMatchmakingFailedEvent(String eventId, UUID rideId, String reason);
 
-    RideResponseDTO startRide(UUID rideId);
+    RideResponseDTO startRide(UUID rideId, Long currentUserId);
 
-    RideResponseDTO completeRide(UUID rideId);
+    RideResponseDTO completeRide(UUID rideId, Long currentUserId);
 
-    RideResponseDTO cancelRide(UUID rideId);
+    RideResponseDTO cancelRide(UUID rideId, Long currentUserId);
 
 }

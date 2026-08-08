@@ -2,12 +2,14 @@ package com.smartmobility.location_service.exception;
 
 import com.smartmobility.location_service.dto.ApiResponse;
 import com.smartmobility.location_service.dto.ApiResponseBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -40,6 +42,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LocationServiceException.class)
     public ResponseEntity<ApiResponse<?>> handleLocationService(LocationServiceException ex) {
+        log.error("Location service error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponseBuilder.error(
                         HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -48,8 +51,19 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(ForbiddenAccessException.class)
+    public ResponseEntity<ApiResponse<?>> handleForbidden(ForbiddenAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponseBuilder.error(
+                        HttpStatus.FORBIDDEN.value(),
+                        ex.getMessage(),
+                        ErrorCodes.FORBIDDEN
+                ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<?>> handleGeneric(Exception ex) {
+        log.error("Unexpected location service error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponseBuilder.error(
                         HttpStatus.INTERNAL_SERVER_ERROR.value(),

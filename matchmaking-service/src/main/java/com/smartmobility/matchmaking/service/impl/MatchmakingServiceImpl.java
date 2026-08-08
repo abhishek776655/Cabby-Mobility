@@ -48,12 +48,19 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 defaultLimit
         );
 
+        if (candidateIds == null || candidateIds.isEmpty()) {
+            saveFailureAndPublish(event, "NO_DRIVER_AVAILABLE");
+            saveProcessed(event);
+            return;
+        }
+
+        List<DriverResponseDTO> fetchedDrivers = driverClient.getDriversBatch(candidateIds);
+
         List<ScoredDriver> candidates = new ArrayList<>();
         DriverResponseDTO selectedDriver = null;
         double selectedScore = -1;
 
-        for (Long candidateId : candidateIds) {
-            DriverResponseDTO driver = driverClient.getDriver(candidateId);
+        for (DriverResponseDTO driver : fetchedDrivers) {
             if (driver == null) {
                 continue;
             }

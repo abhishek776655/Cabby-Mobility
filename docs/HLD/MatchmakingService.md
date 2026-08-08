@@ -17,9 +17,9 @@ Matchmaking Service handles **driver discovery, assignment, and dispatch coordin
 
 * Consume ride requests from cab-service
 * Find nearby available drivers
-* Reserve drivers (15s hold) to prevent double-assignment
+* Reserve drivers (30s hold) to prevent double-assignment
 * Coordinate driver acceptance/rejection
-* Publish assignment outcomes
+* Publish assignment requests and assignment outcomes
 * Retry on reject/timeout
 
 
@@ -31,8 +31,8 @@ Matchmaking Service handles **driver discovery, assignment, and dispatch coordin
 * Find nearby drivers via Location Service
 * Filter eligible drivers (available, not reserved)
 * Rank drivers (distance, rating, acceptance rate)
-* Reserve driver in Redis (15s TTL)
-* Send assignment to Driver Service
+* Reserve driver in Redis (30s TTL)
+* Publish `assignment-requested` for realtime fanout
 * **Consume driver response via Kafka** (assignment-accepted/rejected)
 * Sequential retry on reject/timeout
 * Publish `driver-assigned` or `matchmaking-failed`
@@ -85,7 +85,7 @@ Filter Eligible (availability + not reserved)
         ↓
 Rank Drivers (distance + rating)
         ↓
-Reserve Driver (Redis SETNX, 15s TTL)
+Reserve Driver (Redis SETNX, 30s TTL)
         ↓
 Assignment Requested (to driver)
         ↓
@@ -110,7 +110,7 @@ Exhausted → Publish NoDriverFound
 
 ### Redis (Ephemeral State)
 
-* driver:{driverId}:reservation - reservation lock (15s TTL)
+* driver:{driverId}:reservation - reservation lock (30s TTL)
 * dispatch:{dispatchId} - active dispatch cache
 * drivers:available:geo - available drivers geo index (shared with location-service)
 
@@ -126,7 +126,7 @@ assignment_attempts      → per-driver attempt audit
 processed_events         → idempotency
 
 Redis:
-driver:{driverId}:reservation  → SETNX (dispatchId:rideId, 15s TTL)
+driver:{driverId}:reservation  → SETNX (dispatchId:rideId, 30s TTL)
 dispatch:{dispatchId}          → Hash (status, driverId, expiresAt)
 drivers:available:geo         → GEO (online drivers only)
 ```
@@ -302,7 +302,7 @@ return FAILED
 
 ### Double Assignment Prevention
 
-* Redis SETNX with 15s TTL ensures only one dispatch can reserve a driver
+* Redis SETNX with 30s TTL ensures only one dispatch can reserve a driver
 * Reservation key = `driver:{driverId}:reservation`
 * Value = `{dispatchId}:{rideId}`
 

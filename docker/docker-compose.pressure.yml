@@ -1,0 +1,60 @@
+services:
+  auth-service:
+    cpus: "0.5"
+    mem_limit: 768m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m
+
+  user-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  driver-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  cab-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  location-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  matchmaking-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  gateway-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  realtime-gateway-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  rider-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
+
+  eureka-service:
+    cpus: "0.25"
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms96m -Xmx224m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m

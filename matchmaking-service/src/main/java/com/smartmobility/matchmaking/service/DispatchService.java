@@ -12,6 +12,8 @@ public interface DispatchService {
 
     void handleDriverResponse(UUID dispatchId, Long driverUserId, boolean accepted);
 
+    void handleDispatchTimeout(UUID dispatchId);
+
     void cancelDispatch(UUID rideId, String reason);
 
     Optional<DispatchStatusResponse> getDispatchStatus(UUID rideId);

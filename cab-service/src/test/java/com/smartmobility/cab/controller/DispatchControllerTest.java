@@ -36,16 +36,19 @@ class DispatchControllerTest {
     @Test
     void handleDriverResponse_Accept_ReturnsSuccess() throws Exception {
         UUID dispatchId = UUID.randomUUID();
+        UUID rideId = UUID.randomUUID();
         Long driverUserId = 1L;
 
         DriverResponseRequest request = new DriverResponseRequest();
+        request.setRideId(rideId);
         request.setDispatchId(dispatchId);
         request.setDriverUserId(driverUserId);
         request.setResponse(DriverResponseRequest.DriverResponse.ACCEPT);
 
-        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(true));
+        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(true), eq(rideId), eq(driverUserId));
 
         mockMvc.perform(post("/dispatch/driver-response")
+                        .header("X-User-Id", driverUserId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -56,16 +59,19 @@ class DispatchControllerTest {
     @Test
     void handleDriverResponse_Reject_ReturnsSuccess() throws Exception {
         UUID dispatchId = UUID.randomUUID();
+        UUID rideId = UUID.randomUUID();
         Long driverUserId = 1L;
 
         DriverResponseRequest request = new DriverResponseRequest();
+        request.setRideId(rideId);
         request.setDispatchId(dispatchId);
         request.setDriverUserId(driverUserId);
         request.setResponse(DriverResponseRequest.DriverResponse.REJECT);
 
-        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(false));
+        doNothing().when(dispatchService).handleDriverResponse(eq(dispatchId), eq(driverUserId), eq(false), eq(rideId), eq(driverUserId));
 
         mockMvc.perform(post("/dispatch/driver-response")
+                        .header("X-User-Id", driverUserId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -76,10 +82,12 @@ class DispatchControllerTest {
     @Test
     void handleDriverResponse_MissingDispatchId_ReturnsBadRequest() throws Exception {
         DriverResponseRequest request = new DriverResponseRequest();
+        request.setRideId(UUID.randomUUID());
         request.setDriverUserId(1L);
         request.setResponse(DriverResponseRequest.DriverResponse.ACCEPT);
 
         mockMvc.perform(post("/dispatch/driver-response")
+                        .header("X-User-Id", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -93,9 +101,10 @@ class DispatchControllerTest {
         request.setRideId(rideId);
         request.setReason("User requested cancellation");
 
-        doNothing().when(dispatchService).cancelDispatch(eq(rideId), anyString());
+        doNothing().when(dispatchService).cancelDispatch(eq(rideId), anyString(), eq(1L));
 
         mockMvc.perform(post("/dispatch/cancel")
+                        .header("X-User-Id", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -116,9 +125,10 @@ class DispatchControllerTest {
                 .retryCount(0)
                 .build();
 
-        when(dispatchService.getDispatchStatus(rideId)).thenReturn(Optional.of(response));
+        when(dispatchService.getDispatchStatus(rideId, 1L)).thenReturn(Optional.of(response));
 
-        mockMvc.perform(get("/dispatch/{rideId}", rideId))
+        mockMvc.perform(get("/dispatch/{rideId}", rideId)
+                        .header("X-User-Id", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("ASSIGNMENT_SENT"))
@@ -129,9 +139,10 @@ class DispatchControllerTest {
     void getDispatchStatus_NotFound_Returns404() throws Exception {
         UUID rideId = UUID.randomUUID();
 
-        when(dispatchService.getDispatchStatus(rideId)).thenReturn(Optional.empty());
+        when(dispatchService.getDispatchStatus(rideId, 1L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/dispatch/{rideId}", rideId))
+        mockMvc.perform(get("/dispatch/{rideId}", rideId)
+                        .header("X-User-Id", 1L))
                 .andExpect(status().isNotFound());
     }
 }

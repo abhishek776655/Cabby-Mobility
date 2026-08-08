@@ -22,12 +22,34 @@ public class ReservationService {
     public boolean acquireReservation(Long driverUserId, String dispatchId, String rideId) {
         String key = String.format(RESERVATION_KEY_PREFIX, driverUserId);
         String value = dispatchId + ":" + rideId;
-        int ttlSeconds = properties.getReservation().getTtlSeconds();
+        int ttlSeconds = properties.getDispatchTimeoutSeconds();
 
         Boolean result = redisTemplate.opsForValue()
             .setIfAbsent(key, value, Duration.ofSeconds(ttlSeconds));
 
         log.info("Reservation attempt for driver {}: {}", driverUserId, result);
+        return Boolean.TRUE.equals(result);
+    }
+
+    /**
+     * Prolongs an existing reservation's TTL without changing its owner. Used when a driver
+     * accepts a ride: the offer-window reservation must not be released (that would make the
+     * driver look available to other rides while actually on-trip), but should instead cover
+     * the ride's expected duration as a safety net until the ride-completed/cancelled event
+     * explicitly releases it.
+     */
+    public boolean extendReservation(Long driverUserId, String dispatchId, long ttlSeconds) {
+        String key = String.format(RESERVATION_KEY_PREFIX, driverUserId);
+        String currentValue = redisTemplate.opsForValue().get(key);
+
+        if (currentValue == null || !currentValue.startsWith(dispatchId + ":")) {
+            log.warn("Cannot extend reservation for driver {}: no matching reservation for dispatch {}",
+                    driverUserId, dispatchId);
+            return false;
+        }
+
+        Boolean result = redisTemplate.expire(key, Duration.ofSeconds(ttlSeconds));
+        log.info("Extended reservation for driver {} to {}s: {}", driverUserId, ttlSeconds, result);
         return Boolean.TRUE.equals(result);
     }
 

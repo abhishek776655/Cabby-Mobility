@@ -2,6 +2,7 @@ package com.smartmobility.cab.event;
 
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -14,5 +15,5 @@ public class MatchmakingFailedEvent {
     private String eventId;
     private UUID rideId;
     private String reason;
-    private String failedAt;
+    private LocalDateTime failedAt;
 }

@@ -8,7 +8,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.util.backoff.FixedBackOff;
-import tools.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import org.apache.kafka.common.errors.SerializationException;
 
 @Configuration
 @EnableKafka
@@ -33,7 +34,8 @@ public class KafkaErrorHandlerConfig {
 
         errorHandler.addNotRetryableExceptions(
                 IllegalArgumentException.class,
-                InvalidFormatException.class
+                InvalidFormatException.class,
+                SerializationException.class
         );
 
         return errorHandler;

@@ -3,12 +3,11 @@ package com.smartmobility.matchmaking.scheduler;
 import com.smartmobility.matchmaking.domain.DispatchStatus;
 import com.smartmobility.matchmaking.entity.DispatchSessionEntity;
 import com.smartmobility.matchmaking.repository.DispatchSessionRepository;
-import com.smartmobility.matchmaking.redis.ReservationService;
+import com.smartmobility.matchmaking.service.DispatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,28 +18,21 @@ import java.util.List;
 public class DispatchTimeoutScheduler {
 
     private final DispatchSessionRepository dispatchRepository;
-    private final ReservationService reservationService;
+    private final DispatchService dispatchService;
 
     @Scheduled(fixedDelay = 5000)
-    @Transactional
     public void handleExpiredAssignments() {
         List<DispatchSessionEntity> expiredSessions =
             dispatchRepository.findExpiredDispatchSessions(Instant.now());
 
         for (DispatchSessionEntity session : expiredSessions) {
-            if (session.getStatus() == DispatchStatus.ASSIGNMENT_SENT &&
-                session.getCurrentDriverUserId() != null) {
+            if (session.getStatus() == DispatchStatus.ASSIGNMENT_SENT ||
+                session.getStatus() == DispatchStatus.RETRYING) {
 
                 log.info("Handling timeout for dispatch {} driver {}",
                     session.getDispatchId(), session.getCurrentDriverUserId());
 
-                reservationService.releaseReservation(
-                    session.getCurrentDriverUserId(),
-                    session.getDispatchId().toString());
-
-                session.setStatus(DispatchStatus.RETRYING);
-                session.setUpdatedAt(Instant.now());
-                dispatchRepository.save(session);
+                dispatchService.handleDispatchTimeout(session.getDispatchId());
             }
         }
     }
