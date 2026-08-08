@@ -1,0 +1,91 @@
+{
+  "title": "Resilience4j Circuit Breakers",
+  "tags": [
+    "resilience4j",
+    "circuit-breaker",
+    "gateway"
+  ],
+  "timezone": "browser",
+  "refresh": "5s",
+  "panels": [
+    {
+      "title": "Circuit Breaker State (0=CLOSED, 1=OPEN, 2=HALF_OPEN)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_state{state=\"open\"} * 1 + resilience4j_circuitbreaker_state{state=\"half_open\"} * 2 + resilience4j_circuitbreaker_state{state=\"closed\"} * 0",
+          "legendFormat": "{{name}} ({{instance}})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "title": "Circuit Breaker Calls (Successful vs Failed)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(resilience4j_circuitbreaker_calls_total{kind=\"successful\"}[1m])) by (name)",
+          "legendFormat": "{{name}} - Success",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(resilience4j_circuitbreaker_calls_total{kind=\"failed\"}[1m])) by (name)",
+          "legendFormat": "{{name}} - Failed",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        }
+      }
+    },
+    {
+      "title": "Calls Prevented (Circuit Open)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(resilience4j_circuitbreaker_calls_total{kind=\"not_permitted\"}[1m])) by (name)",
+          "legendFormat": "{{name}} - Blocked",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        }
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}

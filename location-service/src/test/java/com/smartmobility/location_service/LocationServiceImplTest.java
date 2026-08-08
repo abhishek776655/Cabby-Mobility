@@ -8,6 +8,7 @@ import com.smartmobility.location_service.exception.ForbiddenAccessException;
 import com.smartmobility.location_service.security.DriverOwnershipGuard;
 import com.smartmobility.location_service.service.impl.LocationServiceImpl;
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.util.List;
 
@@ -24,7 +25,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 locationRepository,
                 driverServiceClient,
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         locationService.goOnline(42L, 42L, 28.7041, 77.1025);
@@ -41,7 +43,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 new FakeLocationRepository(),
                 new FakeDriverServiceClient(),
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         assertThrows(
@@ -57,7 +60,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 locationRepository,
                 new FakeDriverServiceClient(),
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         List<Long> result = locationService.getNearbyDrivers(28.7041, 77.1025, 5.0, 10);
@@ -72,7 +76,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 locationRepository,
                 new FakeDriverServiceClient(),
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         List<Long> result = locationService.getNearbyDrivers(40.7128, -74.0060, 5.0, 10);
@@ -89,7 +94,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 locationRepository,
                 new FakeDriverServiceClient(),
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         assertThrows(
@@ -105,7 +111,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 locationRepository,
                 driverServiceClient,
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         locationService.goOffline(42L, 42L);
@@ -119,7 +126,8 @@ class LocationServiceImplTest {
         LocationServiceImpl locationService = new LocationServiceImpl(
                 new FakeLocationRepository(),
                 new FakeDriverServiceClient(),
-                new DriverOwnershipGuard()
+                new DriverOwnershipGuard(),
+                new SimpleMeterRegistry()
         );
 
         assertThrows(
@@ -166,6 +174,11 @@ class LocationServiceImplTest {
         @Override
         public void evictStaleDrivers() {
             // no-op for these tests
+        }
+
+        @Override
+        public Long countOnlineDrivers() {
+            return 0L;
         }
     }
 

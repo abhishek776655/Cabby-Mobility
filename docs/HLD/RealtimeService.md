@@ -33,8 +33,7 @@ Realtime Gateway Service bridges **Kafka events to WebSocket/STOMP clients** for
 * ❌ No ride state ownership (Cab Service)
 * ❌ No driver state ownership (Driver Service)
 * ❌ No persistence (stateless by design)
-* ❌ No authentication in Phase 1
-* ❌ No Redis pub/sub
+* ❌ No Redis pub/sub — **single-instance only** (see Scaling Limitation below)
 
 
 ---
@@ -45,6 +44,39 @@ Realtime Gateway Service bridges **Kafka events to WebSocket/STOMP clients** for
 
 * Rider App → Realtime Service (subscribe to `/topic/trip/{rideId}`)
 * Driver App → Realtime Service (subscribe to `/topic/driver/{driverId}`)
+* Realtime Service → Cab Service (`GET /rides/{rideId}` with `X-User-Id`) — verifies trip-topic ownership,
+  see Security below
+
+### Security — WebSocket/STOMP Auth
+
+Previously this endpoint had **zero authN/authZ**: `setAllowedOriginPatterns("*")` and no token check
+anywhere, so anyone could connect and subscribe to any `/topic/trip/{rideId}` or `/topic/driver/{driverId}`
+— both IDs are sequential/guessable. Fixed with a `StompAuthChannelInterceptor`:
+
+* **CONNECT** requires a native STOMP header `Authorization: Bearer {jwt}` (same shared HMAC secret as
+  auth-service/gateway-service). Missing/invalid token → `StompAuthorizationException`, connection rejected.
+* **SUBSCRIBE** is destination-scoped to the authenticated principal:
+  * `/topic/driver/{id}` — `id` must equal the principal's own `userId`, or role `ADMIN`
+  * `/topic/trip/{rideId}` — calls `RideOwnershipClient.isRideParticipant(rideId, userId)`, which hits
+    cab-service's existing `GET /rides/{rideId}` with `X-User-Id` — reuses cab-service's own
+    rider-or-driver ownership check rather than duplicating it here
+  * anything else — denied by default
+
+> ⚠️ **Non-obvious gotcha:** `accessor.setUser(principal)` set on the CONNECT message inside a
+> `ChannelInterceptor` does **not** persist to later frames on the same session. That association is made
+> by `StompSubProtocolHandler` at the WebSocket-handshake level using an *HTTP* principal — which doesn't
+> exist here, since auth happens in-band over STOMP, not at the HTTP handshake. `StompAuthChannelInterceptor`
+> tracks `sessionId → principal` itself in a `ConcurrentHashMap`, populated on CONNECT, read on SUBSCRIBE,
+> and cleaned up on DISCONNECT (STOMP frame) and on `SessionDisconnectEvent` (abrupt closes that skip it).
+
+**CORS**: `allowedOriginPatterns` is now `realtime.websocket.allowed-origins` (default
+`http://localhost:3000,http://localhost:5173`), not `*`.
+
+**Client-side change required:** any STOMP client connecting here must send the JWT as a native CONNECT
+header — e.g. `connectHeaders: { Authorization: 'Bearer ' + token }` — or every connection is rejected.
+`scripts/simulate-random-ride-load.mjs` and `scripts/simulate-ride-scenario.mjs` were updated accordingly,
+and now open **one WebSocket connection per driver candidate** instead of one connection subscribing to
+every candidate's topic (a single token can't own multiple driver identities).
 
 
 ### Async (Kafka)
@@ -95,6 +127,12 @@ Realtime Gateway is a **stateless event fanout service**:
 * No persistent state
 * Events broadcasted in-memory via Spring SimpleBroker
 
+> ⚠️ **Known scaling limitation (not yet fixed):** `enableSimpleBroker` is in-memory and per-instance. If
+> this service runs as >1 replica, a session connected to pod A never receives a broadcast triggered by a
+> Kafka message consumed by pod B — Kafka's consumer group already handles fan-in correctly (only one pod
+> processes each event), but fan-out to sessions on *other* pods is unhandled. Fine at a single instance;
+> would need `enableStompBrokerRelay` (external broker) or a Redis pub/sub relay before scaling out.
+
 
 ---
 
@@ -119,7 +157,9 @@ Kafka Event → Validate → Construct Destination → Broadcast via SimpMessagi
 
 ```
 realtime-gateway-service/
-├── config/
+├── config/          (WebSocketConfig, KafkaConsumerConfig, RestClientConfig)
+├── security/        (StompAuthChannelInterceptor, JwtUtils, RealtimePrincipal,
+│                      RideOwnershipClient, StompAuthorizationException)
 ├── websocket/
 ├── kafka/
 ├── service/
@@ -225,21 +265,20 @@ public void broadcastAssignmentRequest(AssignmentRequestedEvent event) {
 
 
 
-## 🔒 Configuration (application.yml)
+## 🔒 Configuration (application.properties)
 
-```yaml
-server:
-  port: 8095
+```properties
+server.port=8095
 
-spring:
-  application:
-    name: realtime-gateway-service
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: realtime-gateway-service-group
-  websocket:
-    allowed-origins: "*"
+spring.application.name=realtime-gateway-service
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.consumer.group-id=realtime-gateway-service-group
+
+jwt.secret=${JWT_SECRET:...}
+services.cab.url=${CAB_SERVICE_URL:http://cab-service:8089}
+
+realtime.websocket.endpoint=/ws
+realtime.websocket.allowed-origins=${REALTIME_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
 ```
 
 
@@ -248,11 +287,18 @@ spring:
 * Kafka failure → Logged, handled by Kafka error handler
 * No WebSocket subscriber → Message dropped (no retry)
 * Invalid event → Logged, passed to error handler
+* Missing/invalid JWT on CONNECT → `StompAuthorizationException`, connection rejected
+* Unauthorized SUBSCRIBE (wrong driver topic, not a ride participant, unknown destination) → rejected,
+  same exception type
+* `RideOwnershipClient` call to cab-service fails/errors → treated as not-a-participant (deny, not allow)
 
 
 ## 🔑 Key Insights
 
 * Realtime Gateway = **stateless event fanout**
-* Spring SimpleBroker = **in-memory message broker**
-* No persistence = **horizontally scalable**
-* Phase 1 = **no auth, no replay, no clustering**
+* Spring SimpleBroker = **in-memory message broker** — single-instance only, see scaling limitation above
+* No persistence = **horizontally scalable** *for the HTTP/Kafka-consumer side*; the broker itself is not
+* WebSocket auth is now **mandatory** — CONNECT needs a JWT, SUBSCRIBE is scoped to the caller's own
+  topics, verified where needed against cab-service's own ownership logic rather than duplicating it
+* Session-to-principal association across STOMP frames needed a manual sessionId map — `ChannelInterceptor.
+  setUser()` on CONNECT alone doesn't propagate to later frames when there's no HTTP-level principal

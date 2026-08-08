@@ -37,7 +37,12 @@ cd docker
 docker-compose up -d
 ```
 
-Starts: PostgreSQL (5432), Redis (6379), Kafka (9092), Eureka (8761)
+Starts: PostgreSQL (5432), Redis (6379), Kafka (9092), Eureka HA pair (8761 + 8762)
+
+> **Note:** compose variable substitution (the `${VAR}` in port mappings) needs `.env` visible to the
+> Compose CLI itself, not just to containers via `env_file:`. Since `.env` lives at the repo root, run from
+> there with `--env-file`, or the affected ports fall back to their literal defaults instead of failing —
+> `docker compose -f docker/docker-compose.yml --env-file .env up -d`.
 
 ### Run Services
 
@@ -124,7 +129,8 @@ You can also use the interactive launcher:
 | Realtime Gateway | 8095 |
 | Location Service | 8090 |
 | Matchmaking Service | 8087 |
-| Eureka | 8761 |
+| Eureka (peer1) | 8761 |
+| Eureka (peer2) | 8762 |
 
 ---
 
@@ -216,13 +222,19 @@ POST /location/driver/offline
 POST /location/driver/update
 ```
 
-> **Note:** `/internal/nearby` is internal-only (used by Matchmaking Service)
+> **Note:** `/internal/nearby` is internal-only (used by Matchmaking Service) and requires an
+> `X-Internal-Secret` header — the service verifies this itself, not just the gateway's edge block.
 
 ### WebSocket
 ```
 ws://localhost:8095/ws
 STOMP: /topic/trip/{rideId}, /topic/driver/{driverId}
 ```
+
+> **Auth required:** the STOMP `CONNECT` frame must include a native header
+> `Authorization: Bearer {jwt}` (same token from `/auth/login`), or the connection is rejected. `SUBSCRIBE`
+> is scoped to the caller's own topics — a rider/driver can only subscribe to their own `driver`/`trip`
+> topic (verified against Cab Service for trip topics), not anyone else's.
 
 ---
 

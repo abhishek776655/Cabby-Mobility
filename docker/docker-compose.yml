@@ -15,6 +15,14 @@ services:
     volumes:
       - ../docker/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -24,6 +32,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    mem_limit: 512m
+    cpus: "0.5"
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -41,6 +51,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    mem_limit: 1.5g
+    cpus: "1.5"
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 20s
@@ -68,6 +80,14 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    mem_limit: 512m
+    cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
 
   eureka-service:
     image: maven:3.9-eclipse-temurin-21
@@ -121,14 +141,16 @@ services:
 
   auth-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: auth-service
     working_dir: /app
     volumes:
       - ../auth-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${AUTH_SERVICE_PORT:-8091}:8091"
+    # No host port: reachable only via Eureka (gateway lb://auth-service) or Kafka.
+    # deploy.replicas scales instance count with `docker compose up`; instance-id is
+    # made unique per-container via ${HOSTNAME} in application.properties.
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -138,17 +160,24 @@ services:
         condition: service_started
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   user-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: user-service
     working_dir: /app
     volumes:
       - ../user-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${USER_SERVICE_PORT:-8081}:8081"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -160,17 +189,24 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   driver-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: driver-service
     working_dir: /app
     volumes:
       - ../driver-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${DRIVER_SERVICE_PORT:-8084}:8084"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -182,17 +218,24 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   cab-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: cab-service
     working_dir: /app
     volumes:
       - ../cab-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${CAB_SERVICE_PORT:-8089}:8089"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -204,17 +247,24 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   location-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: location-service
     working_dir: /app
     volumes:
       - ../location-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${LOCATION_SERVICE_PORT:-8090}:8090"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -224,17 +274,24 @@ services:
         condition: service_started
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   matchmaking-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: matchmaking-service
     working_dir: /app
     volumes:
       - ../matchmaking-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${MATCHMAKING_SERVICE_PORT:-8087}:8087"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -248,6 +305,14 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   gateway-service:
     image: maven:3.9-eclipse-temurin-21
@@ -268,6 +333,14 @@ services:
         condition: service_started
     env_file:
       - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   realtime-gateway-service:
     image: maven:3.9-eclipse-temurin-21
@@ -288,6 +361,14 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   prometheus:
     image: prom/prometheus:v2.55.1
@@ -304,6 +385,12 @@ services:
     depends_on:
       eureka-service:
         condition: service_started
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: zipkin
+    ports:
+      - "9411:9411"
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -326,6 +413,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: "true"
     ports:
       - "3000:3000"
     volumes:
@@ -337,14 +425,13 @@ services:
 
   rider-service:
     image: maven:3.9-eclipse-temurin-21
-    container_name: rider-service
     working_dir: /app
     volumes:
       - ../rider-service:/app
       - maven-cache:/root/.m2
     command: mvn spring-boot:run
-    ports:
-      - "${RIDER_SERVICE_PORT:-8082}:8082"
+    deploy:
+      replicas: 1
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -356,6 +443,14 @@ services:
         condition: service_healthy
     env_file:
       - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
 volumes:
 

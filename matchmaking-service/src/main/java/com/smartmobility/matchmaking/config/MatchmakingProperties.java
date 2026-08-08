@@ -30,6 +30,10 @@ public class MatchmakingProperties {
         return assignment.getTimeoutSeconds();
     }
 
+    public int getDispatchMaxRetries() {
+        return assignment.getMaxRetries();
+    }
+
     public Assignment getAssignment() { return assignment; }
 
     public long getOnTripReservationSeconds() { return onTripReservationSeconds; }

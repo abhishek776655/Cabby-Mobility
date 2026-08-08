@@ -202,7 +202,15 @@ public class DispatchServiceImpl implements DispatchService {
             completeWithFailure(session, "NO_DRIVER_AVAILABLE");
             return;
         }
-        
+
+        // Bound tail latency: without this, a full sweep of discoveryLimit (40) candidates
+        // at timeoutSeconds each could take up to 40 * timeoutSeconds to fail. Cap retries so
+        // dispatch fails fast and the rider isn't left waiting on an exhaustive search.
+        if (session.getRetryCount() >= properties.getDispatchMaxRetries()) {
+            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            return;
+        }
+
         Long nextDriver = remainingDrivers.get(0);
         List<Long> nextList = remainingDrivers.size() > 1 ? remainingDrivers.subList(1, remainingDrivers.size()) : List.of();
 

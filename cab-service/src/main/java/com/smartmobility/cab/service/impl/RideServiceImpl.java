@@ -16,7 +16,12 @@ import com.smartmobility.cab.security.RideAuthorizationGuard;
 import com.smartmobility.cab.service.RideService;
 import com.smartmobility.cab.state.RideState;
 import com.smartmobility.cab.state.RideStateFactory;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +31,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RideServiceImpl implements RideService {
 
     private final RideRepository rideRepository;
@@ -34,6 +38,68 @@ public class RideServiceImpl implements RideService {
     private final RideEventProducer producer;
     private final ProcessedEventRepository processedEventRepository;
     private final RideAuthorizationGuard authorizationGuard;
+    
+    // Business Metrics
+    private final MeterRegistry meterRegistry;
+    private final Counter ridesRequestedCounter;
+    private final Counter ridesCompletedCounter;
+    private final Counter driverAllocatedCounter;
+    private final Timer matchmakingLatencyTimer;
+    private final DistributionSummary fareDistribution;
+
+    public RideServiceImpl(RideRepository rideRepository, RideStateFactory rideStateFactory,
+                           RideEventProducer producer, ProcessedEventRepository processedEventRepository,
+                           RideAuthorizationGuard authorizationGuard, MeterRegistry meterRegistry) {
+        this.rideRepository = rideRepository;
+        this.rideStateFactory = rideStateFactory;
+        this.producer = producer;
+        this.processedEventRepository = processedEventRepository;
+        this.authorizationGuard = authorizationGuard;
+
+        this.meterRegistry = meterRegistry;
+
+        Gauge.builder("business.rides.active", rideRepository, 
+            repo -> repo.countByStatusIn(java.util.List.of(
+                    com.smartmobility.cab.entity.RideStatus.REQUESTED, 
+                    com.smartmobility.cab.entity.RideStatus.DRIVER_ASSIGNED,
+                    com.smartmobility.cab.entity.RideStatus.ONGOING)))
+            .description("Number of rides currently in progress")
+            .register(meterRegistry);
+
+        Gauge.builder("business.riders.active_in_ride", rideRepository,
+            repo -> repo.countDistinctRiderUserIdByStatusIn(java.util.List.of(
+                    com.smartmobility.cab.entity.RideStatus.REQUESTED,
+                    com.smartmobility.cab.entity.RideStatus.DRIVER_ASSIGNED,
+                    com.smartmobility.cab.entity.RideStatus.ONGOING)))
+            .description("Distinct riders currently in an active (non-terminal) ride")
+            .register(meterRegistry);
+
+        // "Active" here = requested a ride within the last 15 minutes; riders have no
+        // online/offline presence concept like drivers, so recent-activity is the closest
+        // proxy for "currently using the app".
+        Gauge.builder("business.riders.active", rideRepository,
+            repo -> repo.countDistinctRiderUserIdSince(LocalDateTime.now().minusMinutes(15)))
+            .description("Distinct riders who requested a ride in the last 15 minutes")
+            .register(meterRegistry);
+
+        this.matchmakingLatencyTimer = Timer.builder("business.rides.matchmaking.latency")
+            .description("Time taken to match a rider with a driver")
+            .register(meterRegistry);
+
+        this.fareDistribution = DistributionSummary.builder("business.rides.fare")
+            .description("Distribution of fare values for completed rides")
+            .register(meterRegistry);
+
+        this.ridesRequestedCounter = Counter.builder("business.rides.requested")
+                .description("Number of rides requested by riders")
+                .register(meterRegistry);
+        this.ridesCompletedCounter = Counter.builder("business.rides.completed")
+                .description("Number of rides successfully completed")
+                .register(meterRegistry);
+        this.driverAllocatedCounter = Counter.builder("business.rides.driver_allocated")
+                .description("Number of drivers successfully allocated to rides")
+                .register(meterRegistry);
+    }
 
     private RideEntity getRide(UUID id) {
         return rideRepository.findById(id)
@@ -70,6 +136,8 @@ public class RideServiceImpl implements RideService {
                         .dropLongitude(savedRide.getDropLongitude())
                         .build()
         );
+        
+        ridesRequestedCounter.increment();
         return RideMapper.toResponseDTO(savedRide);    }
 
     @Override
@@ -108,6 +176,7 @@ public class RideServiceImpl implements RideService {
         }
 
         // 6. Return response
+        meterRegistry.counter("business.rides.failed", "reason", "USER_CANCELLED").increment();
         return RideMapper.toResponseDTO(updatedRide);
     }
 
@@ -156,6 +225,10 @@ public class RideServiceImpl implements RideService {
                 .build());
 
         // 6. Return response
+        if (updatedRide.getFare() != null) {
+            fareDistribution.record(updatedRide.getFare());
+        }
+        ridesCompletedCounter.increment();
         return RideMapper.toResponseDTO(updatedRide);
     }
 
@@ -203,6 +276,11 @@ public class RideServiceImpl implements RideService {
                         .processedAt(LocalDateTime.now())
                         .build()
         );
+        
+        if (ride.getCreatedAt() != null) {
+            matchmakingLatencyTimer.record(Duration.between(ride.getCreatedAt(), LocalDateTime.now()));
+        }
+        driverAllocatedCounter.increment();
     }
 
     @Transactional
@@ -235,5 +313,7 @@ public class RideServiceImpl implements RideService {
                         .processedAt(LocalDateTime.now())
                         .build()
         );
+        
+        meterRegistry.counter("business.rides.failed", "reason", "NO_DRIVERS_AVAILABLE").increment();
     }
 }

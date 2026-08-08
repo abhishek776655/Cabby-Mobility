@@ -10,6 +10,8 @@ public interface LocationRepository {
 
     void markDriverOffline(String driverUserId);
 
+    Long countOnlineDrivers();
+
     List<String> findNearbyDrivers(double lat, double lng, double radiusKm, int limit);
 
     /**

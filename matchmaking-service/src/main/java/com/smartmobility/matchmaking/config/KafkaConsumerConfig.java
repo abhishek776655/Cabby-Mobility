@@ -48,8 +48,13 @@ public class KafkaConsumerConfig {
         
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaOperations);
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3));
-        
+
         factory.setCommonErrorHandler(errorHandler);
+        // This factory is built manually, so it never goes through Boot's
+        // ConcurrentKafkaListenerContainerFactoryConfigurer — spring.kafka.listener.observation-enabled
+        // has no effect on it unless set here explicitly. Without this, trace context from producers
+        // never resumes on the consumer side for any listener using this factory.
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 }

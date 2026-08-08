@@ -38,6 +38,10 @@ Cab Service manages the **ride lifecycle**:
 ### Sync (REST)
 
 * Gateway → Cab Service (user APIs)
+* Cab Service → Matchmaking Service (`GET /internal/dispatch/{rideId}`) — attaches `X-Internal-Secret`
+  header (see Security below)
+* Realtime Gateway → Cab Service (`GET /rides/{rideId}` with `X-User-Id`) — verifies STOMP trip-topic
+  ownership; reuses this endpoint's existing rider-or-driver check rather than duplicating it
 
 ### Async (Kafka)
 
@@ -47,13 +51,22 @@ Cab Service manages the **ride lifecycle**:
 * assignment-accepted (driver response)
 * assignment-rejected (driver response)
 * ride-started (future)
-* ride-completed (future)
-* ride-cancelled (future)
+* ride-completed — **now implemented**, published on `completeRide()`; tells matchmaking-service to release
+  the driver's on-trip reservation
+* ride-cancelled — **now implemented**, published on `cancelRide()` when a driver had already been assigned;
+  same purpose as ride-completed, for the cancel path
 
 **Consumes:**
 
 * driver-assigned
 * matchmaking-failed
+
+### Security — Internal API Auth
+
+Outbound calls to matchmaking-service's `/internal/dispatch/{rideId}` now attach an `X-Internal-Secret`
+header (`MatchmakingServiceClient`, switched from `RestTemplate.getForEntity` to `.exchange` to allow the
+header). matchmaking-service verifies this header itself — the API Gateway's path-block was previously the
+only thing stopping a direct, unauthenticated call to that endpoint from anywhere on the network.
 
 ---
 
@@ -353,6 +366,34 @@ save ride;
 }
 ```
 
+### ride-completed (Produced)
+
+```json
+{
+  "eventId": "uuid",
+  "rideId": "uuid",
+  "driverUserId": 12345,
+  "riderUserId": 6789,
+  "completedAt": "2026-08-08T11:59:11.410937251"
+}
+```
+> Published from `completeRide()` after the ride is saved as COMPLETED. Sole purpose: tell
+> matchmaking-service to release the driver's on-trip Redis reservation right now, instead of
+> waiting for its safety-net TTL to expire.
+
+### ride-cancelled (Produced)
+
+```json
+{
+  "eventId": "uuid",
+  "rideId": "uuid",
+  "driverUserId": 12345,
+  "cancelledAt": "2026-08-08T11:59:11.410937251"
+}
+```
+> Published from `cancelRide()`, **only if a driver had already been assigned** — no point notifying
+> matchmaking about a ride that never had a reservation to release.
+
 ---
 
 ## ⚡ Kafka Flow
@@ -364,6 +405,9 @@ Matchmaking → matchmaking-failed → Cab Service
 
 Driver → /dispatch/driver-response → Cab Service → assignment-accepted → Matchmaking
 Driver → /dispatch/driver-response → Cab Service → assignment-rejected → Matchmaking
+
+Driver → /rides/{id}/complete → Cab Service → ride-completed → Matchmaking (release reservation)
+Rider  → /rides/{id}/cancel   → Cab Service → ride-cancelled → Matchmaking (release reservation, if assigned)
 ```
 
 ### Complete Event Flow
@@ -375,6 +419,8 @@ Driver → /dispatch/driver-response → Cab Service → assignment-rejected →
 | matchmaking-failed | Matchmaking | Cab Service | Handle no driver |
 | assignment-accepted | Cab Service | Matchmaking | Driver accepted |
 | assignment-rejected | Cab Service | Matchmaking | Retry next driver |
+| ride-completed | Cab Service | Matchmaking | Release driver's on-trip reservation |
+| ride-cancelled | Cab Service | Matchmaking | Release driver's on-trip reservation (if assigned) |
 
 ---
 

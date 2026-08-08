@@ -7,12 +7,15 @@ import com.smartmobility.location_service.repository.LocationRepository;
 import com.smartmobility.location_service.service.LocationService;
 import com.smartmobility.location_service.security.DriverOwnershipGuard;
 import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class LocationServiceImpl implements LocationService {
 
     private static final double MAX_RADIUS_KM = 50.0;
@@ -21,6 +24,22 @@ public class LocationServiceImpl implements LocationService {
     private final LocationRepository locationRepository;
     private final DriverAvailabilityClient driverServiceClient;
     private final DriverOwnershipGuard ownershipGuard;
+
+    public LocationServiceImpl(LocationRepository locationRepository, 
+                               DriverAvailabilityClient driverServiceClient, 
+                               DriverOwnershipGuard ownershipGuard,
+                               MeterRegistry meterRegistry) {
+        this.locationRepository = locationRepository;
+        this.driverServiceClient = driverServiceClient;
+        this.ownershipGuard = ownershipGuard;
+        
+        Gauge.builder("business.drivers.active", locationRepository, repo -> {
+            Long count = repo.countOnlineDrivers();
+            return count != null ? count.doubleValue() : 0.0;
+        })
+        .description("Number of active drivers online")
+        .register(meterRegistry);
+    }
 
     @Override
     public void goOnline(Long driverUserId, Long currentUserId, double lat, double lng) {

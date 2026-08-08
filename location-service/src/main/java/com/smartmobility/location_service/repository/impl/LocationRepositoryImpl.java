@@ -52,6 +52,11 @@ public class LocationRepositoryImpl implements LocationRepository {
         setOps.remove(RedisKeys.DRIVERS_AVAILABLE, driverUserId);
         availableGeoOps.remove(RedisKeys.DRIVERS_AVAILABLE_GEO, driverUserId);
     }
+    
+    @Override
+    public Long countOnlineDrivers() {
+        return setOps.size(RedisKeys.DRIVERS_AVAILABLE);
+    }
 
     // 4️⃣ Find nearby drivers
     @Override

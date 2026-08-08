@@ -104,9 +104,18 @@ Terminal/alternate states: CANCELLED, NO_DRIVER_AVAILABLE
 | Location Service | 8090 | Spring Boot + Redis |
 | Matchmaking Service | 8087 | Spring Boot + Kafka |
 | Realtime Gateway | 8095 | Spring Boot + WebSocket |
+| Eureka (peer1) | 8761 | Spring Boot |
+| Eureka (peer2) | 8762 | Spring Boot |
 | PostgreSQL | 5432 | - |
 | Redis | 6379 | - |
 | Kafka | 9092 | - |
+| Zipkin | 9411 | Distributed tracing UI |
+
+> **Eureka is now HA** (`eureka-service` + `eureka-service-2`, registered as peers) instead of a single
+> instance — a single Eureka node was a full-system service-discovery SPOF. Peer-awareness is env-driven
+> (`EUREKA_REGISTER_WITH_EUREKA`, `EUREKA_FETCH_REGISTRY`, `EUREKA_PEER_ZONE`), defaulting to standalone
+> behavior for plain local `mvn spring-boot:run`. Every client's `EUREKA_URL` lists both peer zone URLs
+> (comma-separated) for failover.
 
 ## Architecture Overview
 
@@ -132,10 +141,12 @@ Gateway -->|"rider routes"| Rider["Rider Service :8082"]
 Gateway -->|"location driver routes"| Location["Location Service :8090"]
 Gateway -->|"matchmaking routes"| Matchmaking["Matchmaking Service :8087"]
 
-Auth -->|"internal users API"| User
-User -->|"user.created"| Kafka[("Kafka :9092")]
+Auth -->|"auth.registered (outbox → Kafka)"| Kafka[("Kafka :9092")]
+Kafka -->|"auth.registered"| User
+User -->|"user.created"| Kafka
 Kafka -->|"user.created"| Driver
 Kafka -->|"user.created"| Rider
+Auth -->|"lookup only: findByEmail / findByUserId"| User
 
 Cab -->|"ride-requested"| Kafka
 Kafka -->|"ride-requested"| Matchmaking
@@ -192,17 +203,17 @@ sequenceDiagram
     CabService->>Kafka: Publish ride-requested
 
     Kafka->>MatchmakingService: Consume ride-requested
-    MatchmakingService->>LocationService: POST /internal/nearby
+    MatchmakingService->>LocationService: POST /internal/nearby (X-Internal-Secret, over-fetch top 40)
     LocationService->>Redis: GEOSEARCH drivers:available:geo
     Redis-->>LocationService: Nearby online driver ids
-    LocationService-->>MatchmakingService: Candidate drivers
+    LocationService-->>MatchmakingService: Candidate drivers (filtered to not-already-reserved)
 
-    MatchmakingService->>Redis: SETNX driver reservation with TTL
+    MatchmakingService->>Redis: SETNX driver reservation (offer-window TTL)
     MatchmakingService->>MatchmakingService: Persist dispatch session and attempt
     MatchmakingService->>Kafka: Publish assignment-requested
 
     Kafka->>RealtimeGateway: Consume assignment-requested
-    RealtimeGateway->>Driver: STOMP /topic/driver/{driverUserId}
+    RealtimeGateway->>Driver: STOMP /topic/driver/{driverUserId} (driver's own JWT required to subscribe)
 
     Driver->>Gateway: POST /dispatch/driver-response
     Gateway->>CabService: Route driver response
@@ -210,6 +221,7 @@ sequenceDiagram
 
     Kafka->>MatchmakingService: Consume driver response
     alt accepted
+        MatchmakingService->>Redis: EXTEND reservation to on-trip TTL (not released — driver is on-trip)
         MatchmakingService->>Kafka: Publish driver-assigned
         Kafka->>CabService: Consume driver-assigned
         CabService->>CabService: Move ride to DRIVER_ASSIGNED
@@ -221,6 +233,11 @@ sequenceDiagram
         Kafka->>CabService: Consume matchmaking-failed
         CabService->>CabService: Move ride to NO_DRIVER_AVAILABLE
     end
+
+    Note over CabService,MatchmakingService: ...ride proceeds: start → ongoing → complete/cancel...
+    CabService->>Kafka: Publish ride-completed (or ride-cancelled)
+    Kafka->>MatchmakingService: Consume ride-completed/ride-cancelled
+    MatchmakingService->>Redis: Release driver's on-trip reservation
 ```
 
 #### AUTH + USER + ROLE-SPECIFIC ONBOARDING FLOW
@@ -237,16 +254,22 @@ sequenceDiagram
 
     Client->>Gateway: POST /auth/register or /auth/login
     Gateway->>AuthService: Route auth request
-    AuthService->>UserService: POST /internal/users for registration
+    AuthService->>Postgres: Save AuthCredential + outbox row (same transaction, topic=auth.registered)
+    AuthService-->>Client: JWT access token + refresh token
+    Note over AuthService: register() returns immediately here — it never waits on User Service
+    AuthService->>Kafka: OutboxRelayScheduler relays auth.registered (polls every 1s)
+    Kafka->>UserService: Consume auth.registered (idempotent: existsById check)
     UserService->>Postgres: Persist identity
     UserService->>Kafka: Publish user.created
     Kafka->>DriverService: Consume user.created (DRIVER role)
     DriverService->>Postgres: Create or update driver profile when applicable
     Kafka->>RiderService: Consume user.created (RIDER role)
     RiderService->>Postgres: Create default rider profile
-    AuthService->>Postgres: Persist credentials / refresh tokens
-    AuthService-->>Client: JWT access token + refresh token
 ```
+> No `/internal/users` REST call is made during registration — that Feign client
+> (`UserServiceClient`) exists only for `findByEmail`/`findByUserId` lookups on the login/refresh path.
+> User Service's own profile creation is entirely event-driven and happens **after** the client already
+> has their JWT, not as a precondition for registration succeeding.
 
 #### RIDE STATE MACHINE
 
@@ -334,8 +357,16 @@ RealtimeGateway -->|"trip topic"| Rider
 | /location/driver/online | location-service | 8090 | DRIVER |
 | /location/driver/offline | location-service | 8090 | DRIVER |
 | /location/driver/update | location-service | 8090 | DRIVER |
-| /internal/nearby | location-service | 8090 | INTERNAL header required by Gateway |
+| /internal/nearby | location-service | 8090 | Blocked at gateway edge, **and** now verified by location-service itself via `X-Internal-Secret` |
 | /matchmaking/** | matchmaking-service | 8087 | Configured gateway route |
+
+> **Internal API auth hardened:** the gateway's path-block on `/internal/**` used to be the *only*
+> protection — any pod with direct network access to user-service, location-service, or matchmaking-service
+> could call their internal endpoints unauthenticated. Each of those services now runs an
+> `InternalApiSecurityFilter` that checks an `X-Internal-Secret` header (shared secret, `internal.api.secret`)
+> on every `/internal/**` request regardless of how it arrived. Callers (auth-service → user-service via a
+> Feign `RequestInterceptor`; matchmaking-service → location-service; cab-service → matchmaking-service)
+> attach the header on their outbound calls.
 
 ### Service Controller Paths
 
@@ -356,13 +387,15 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ### Responsibilities
 
-* Login/Register
+* Login/Register — owns and commits the credential record directly; never blocks on User Service
 * JWT issuance
-* Credential storage
+* Credential storage (refresh tokens hashed at rest)
 
 ### Communication
 
-* Calls → User Service `/internal/users`
+* Calls → User Service `/internal/users` — **lookup only** (`findByEmail`/`findByUserId` on login/refresh),
+  never to create a user
+* Emits → `auth.registered` (via outbox) — the actual registration handoff to User Service
 * Persists → auth credentials, refresh tokens
 
 ---
@@ -376,6 +409,7 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ### Communication
 
+* Consumes → `auth.registered` (from Auth Service, via outbox) — idempotent, creates the identity record
 * Emits → user.created
 * Sync APIs for reads
 
@@ -505,13 +539,18 @@ RealtimeGateway -->|"trip topic"| Rider
 ## Synchronous (REST)
 
 * Gateway → Services
-* Auth Service → User Service (`/internal/users`)
-* Matchmaking Service → Location Service (`/internal/nearby`)
-* Cab Service → Matchmaking Service (`/internal/dispatch/{rideId}`)
+* Auth Service → User Service (`/internal/users`) — `X-Internal-Secret` header attached
+* Matchmaking Service → Location Service (`/internal/nearby`) — `X-Internal-Secret` header attached
+* Cab Service → Matchmaking Service (`/internal/dispatch/{rideId}`) — `X-Internal-Secret` header attached
+* Realtime Gateway → Cab Service (`/rides/{rideId}`) — WebSocket trip-topic ownership check
 
 ## Asynchronous (Kafka)
 
 ### Topics
+
+All topics below are declared explicitly via `NewTopic` beans (`KafkaTopicConfig` in the producing
+service) — 3 partitions / replication factor 1 — instead of relying on broker auto-create defaults
+(which would create single-partition topics, capping consumer-group parallelism at 1 instance).
 
 | Topic | Producer | Consumer | Purpose |
 |-------|----------|----------|---------|
@@ -520,26 +559,33 @@ RealtimeGateway -->|"trip topic"| Rider
 | matchmaking-failed | Matchmaking | Cab Service | No driver available |
 | assignment-accepted | Cab Service | Matchmaking | Driver accepted (from /dispatch/driver-response) |
 | assignment-rejected | Cab Service | Matchmaking | Driver rejected → retry |
+| driver-assignment-failed | Matchmaking | — | Driver-side assignment failure signal |
 | driver-location-events | Location/event pipeline | Realtime Gateway | Driver location updates for rider tracking |
 | assignment-requested | Matchmaking Service | Realtime Gateway | Driver assignment notifications |
+| ride-completed | Cab Service | Matchmaking | Release driver's on-trip reservation |
+| ride-cancelled | Cab Service | Matchmaking | Release driver's on-trip reservation (if a driver was assigned) |
 
 Other:
-* user.created
+* auth.registered (Auth Service → User Service, via outbox — registration handoff, not a saga)
+* user.created (User Service → Driver Service, Rider Service)
 
 ### Key Flows
 
 **Ride Booking Flow:**
 1. Cab Service → ride-requested → Kafka
 2. Matchmaking consumes ride-requested
-3. Matchmaking → Location Service (nearby drivers)
+3. Matchmaking → Location Service (nearby drivers, over-fetches top 40 by distance before eligibility filtering)
 4. Location Service → Redis GEO (online available drivers)
-5. Matchmaking reserves driver with Redis TTL lock
+5. Matchmaking reserves driver with Redis TTL lock (offer window)
 6. Matchmaking → assignment-requested → Kafka
-7. Realtime Gateway broadcasts to driver topic
+7. Realtime Gateway broadcasts to driver topic (WebSocket now requires the driver's own JWT to subscribe)
 8. Driver → Cab Service `/dispatch/driver-response`
 9. Cab Service → assignment-accepted or assignment-rejected → Kafka
-10. Matchmaking publishes driver-assigned or matchmaking-failed
+10. Matchmaking publishes driver-assigned or matchmaking-failed; on acceptance the reservation is
+    **extended** (on-trip TTL), not released
 11. Cab Service consumes final outcome and updates ride state
+12. When the ride later completes/cancels, Cab Service publishes ride-completed/ride-cancelled, which
+    Matchmaking consumes to release the driver's reservation for real
 
 **Auth/User/Role-Specific Onboarding Flow:**
 1. Client → Gateway → Auth Service
@@ -566,9 +612,12 @@ Other:
 
 * Central entry point
 
-## 3. Saga Pattern (Kafka)
+## 3. Transactional Outbox Pattern (Kafka)
 
-* Distributed consistency
+* Used by auth-service, cab-service — Kafka publish and the triggering DB write commit atomically in one
+  transaction, relayed to Kafka by a polling scheduler. **Not a saga**: no compensation/rollback step
+  exists anywhere in this system; downstream failures don't unwind the original write, they're just
+  eventually-consistent
 
 ## 4. Event-Driven Architecture
 
@@ -632,17 +681,25 @@ Other:
 
 ---
 
-# 📊 OBSERVABILITY (Planned)
+# 📊 OBSERVABILITY
 
 * Prometheus (metrics)
 * Grafana (dashboards)
-* OpenTelemetry (tracing)
+* Distributed tracing: Micrometer Tracing + OpenTelemetry bridge (`micrometer-tracing-bridge-otel`) +
+  Zipkin exporter, across all 9 app services (auth, user, cab, driver, location, matchmaking, gateway,
+  realtime-gateway, rider). Trace/span IDs propagate across both HTTP and Kafka hops
+  (`spring.kafka.template/listener.observation-enabled`); services with manually-built
+  `ConcurrentKafkaListenerContainerFactory` beans (matchmaking, realtime-gateway, rider) set
+  `factory.getContainerProperties().setObservationEnabled(true)` explicitly, since that property only
+  auto-applies to Boot-auto-configured factories. Zipkin UI: `http://localhost:9411`.
 
 ---
 
 # 🚀 DEPLOYMENT
 
-* Docker (current)
+* Docker Compose (current) — all app services and core infra (postgres, redis, kafka, zookeeper) carry
+  explicit `mem_limit`/`cpus` and `healthcheck` (actuator `/health` for app services; `pg_isready`/
+  `redis-cli ping` for infra) in the base `docker-compose.yml`, not just the load-test pressure overlay
 * Kubernetes (future)
 
 ---
@@ -654,6 +711,14 @@ Other:
 3. Matchmaking isolated → independent scaling and retry control
 4. Redis for real-time location and reservation state → low latency
 5. Realtime Gateway stateless fanout → independent WebSocket scaling
+6. Driver reservation lifecycle is event-driven end-to-end (reserve → extend on accept → release on
+   ride-completed/cancelled), with TTL as a lost-event safety net rather than the primary release path →
+   an accepted driver can no longer be double-booked while genuinely on-trip
+7. Internal APIs authenticate themselves (`X-Internal-Secret`) rather than trusting the gateway's edge
+   block or network position alone → each service is safe to call directly, not just via the gateway
+8. WebSocket/STOMP auth is mandatory and session-scoped (JWT on CONNECT, topic ownership on SUBSCRIBE) →
+   closes what was previously a fully open real-time channel
+9. Eureka runs as an HA peer pair, not a single instance → removes a full-system discovery SPOF
 
 ---
 

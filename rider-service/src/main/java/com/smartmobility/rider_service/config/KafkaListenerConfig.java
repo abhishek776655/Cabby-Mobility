@@ -29,6 +29,9 @@ public class KafkaListenerConfig {
         // keep single record processing
         factory.setBatchListener(false);
 
+        // Manually built factory — spring.kafka.listener.observation-enabled never reaches it otherwise.
+        factory.getContainerProperties().setObservationEnabled(true);
+
         return factory;
     }
 }

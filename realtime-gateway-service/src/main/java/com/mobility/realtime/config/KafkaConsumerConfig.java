@@ -47,6 +47,8 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(driverLocationConsumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
         factory.setAutoStartup(autoStartup);
+        // Manually built factory — spring.kafka.listener.observation-enabled never reaches it otherwise.
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 
@@ -68,6 +70,7 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(assignmentRequestedConsumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
         factory.setAutoStartup(autoStartup);
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 

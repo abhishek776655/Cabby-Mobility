@@ -215,6 +215,14 @@ Value: driverId → lat/lng (only online drivers)
 |----------|--------|-------------|
 | `/internal/nearby` | POST | Find nearby drivers (not exposed to external clients) |
 
+> 🔒 **Security:** `/internal/**` requires an `X-Internal-Secret` header matching `internal.api.secret`,
+> enforced by `InternalApiSecurityFilter` at this service — not just blocked at the API Gateway's edge.
+> The gateway's path-block alone didn't stop a caller with direct network access to this service.
+>
+> **Bounded params:** `radiusKm` is capped at 50km, `limit` at 200 (`NearbyDriversRequest` validation) —
+> previously unbounded, so a caller could request `radiusKm=999999`/`limit=999999999` and trigger an
+> unbounded Redis GEOSEARCH.
+
 
 
 ## ⚙️ Service Logic
@@ -310,6 +318,36 @@ SADD   → idempotent
 SREM   → idempotent
 ```
 
+## 🧹 Stale Driver Eviction
+
+**Problem:** `drivers:geo` (the base GEO set, all drivers ever seen) never had an eviction path. A driver
+whose app crashed without calling `/location/driver/offline` lingered in that set forever — the only
+cleanup that existed was `findNearbyDrivers` lazily evicting from `drivers:available`/`drivers:available:geo`
+*when queried and found stale*, which never touched the base `drivers:geo` set at all.
+
+**How staleness is tracked:** every location update (`upsertDriverLocation`) also does
+`SET driver:active:{id} 1 EX 60` — a 60s heartbeat key. If a driver stops sending updates, this key expires
+and is never renewed.
+
+**Fix — `StaleDriverReaperScheduler`:** a `@Scheduled(fixedDelay = 60000)` job (`@EnableScheduling` added to
+`LocationServiceApplication`) calls `LocationRepository.evictStaleDrivers()` every 60s:
+
+```java
+// Base GEO set is a ZSET under the hood, so ZRANGE reads every member ever added
+Set<String> driverIds = zSetOps.range(RedisKeys.DRIVERS_GEO, 0, -1);
+
+for (driverId : driverIds) {
+    if (GET driver:active:{driverId} == null) {   // heartbeat expired
+        ZREM drivers:geo driverId;
+        ZREM drivers:available:geo driverId;
+        SREM drivers:available driverId;
+    }
+}
+```
+
+No new Redis structure needed — `GeoOperations` and the plain `drivers:geo` key are backed by the same
+ZSET, so a `ZSetOperations` bean can read all members directly (`ZRANGE key 0 -1`) without a separate index.
+
 
 
 ## 🧠 Patterns Used
@@ -327,6 +365,7 @@ SREM   → idempotent
 * Redis failure → request fails (client retry expected)
 * No fallback DB (by design)
 * Future: retry + circuit breaker
+* Crashed driver (no clean offline call) → evicted within 60s by `StaleDriverReaperScheduler`, not left forever
 
 
 
@@ -336,3 +375,6 @@ SREM   → idempotent
 * Redis = **primary datastore (not cache)**
 * GEO + SET separation = **critical for performance**
 * Designed for **low latency + high throughput**
+* Internal endpoints verify a shared secret themselves — don't rely solely on the gateway/network boundary
+* A GEO key is just a ZSET — reuse `ZSetOperations` to enumerate members for cleanup jobs instead of adding
+  a parallel tracking structure

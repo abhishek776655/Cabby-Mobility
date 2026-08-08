@@ -77,4 +77,11 @@ public class ReservationService {
     public boolean hasActiveReservation(Long driverUserId) {
         return getReservation(driverUserId).isPresent();
     }
+
+    // KEYS is O(n) over the driver-reservation keyspace; acceptable at current fleet size.
+    // A counter incremented/decremented on acquire/release would drift on TTL expiry (a
+    // reservation lapsing doesn't fire a release call), so a live scan stays correct instead.
+    public long countActiveReservations() {
+        return redisTemplate.keys(RESERVATION_KEY_PREFIX.replace("%s", "*")).size();
+    }
 }
