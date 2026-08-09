@@ -8,6 +8,7 @@ import com.smartmobility.cab.event.RideCancelledEvent;
 import com.smartmobility.cab.event.RideCompletedEvent;
 import com.smartmobility.cab.event.RideRequestedEvent;
 import com.smartmobility.cab.exception.RideNotFoundException;
+import com.smartmobility.cab.client.PricingServiceClient;
 import com.smartmobility.cab.mapper.RideMapper;
 import com.smartmobility.cab.kafka.RideEventProducer;
 import com.smartmobility.cab.repository.ProcessedEventRepository;
@@ -38,6 +39,7 @@ public class RideServiceImpl implements RideService {
     private final RideEventProducer producer;
     private final ProcessedEventRepository processedEventRepository;
     private final RideAuthorizationGuard authorizationGuard;
+    private final PricingServiceClient pricingServiceClient;
     
     // Business Metrics
     private final MeterRegistry meterRegistry;
@@ -49,12 +51,14 @@ public class RideServiceImpl implements RideService {
 
     public RideServiceImpl(RideRepository rideRepository, RideStateFactory rideStateFactory,
                            RideEventProducer producer, ProcessedEventRepository processedEventRepository,
-                           RideAuthorizationGuard authorizationGuard, MeterRegistry meterRegistry) {
+                           RideAuthorizationGuard authorizationGuard, PricingServiceClient pricingServiceClient,
+                           MeterRegistry meterRegistry) {
         this.rideRepository = rideRepository;
         this.rideStateFactory = rideStateFactory;
         this.producer = producer;
         this.processedEventRepository = processedEventRepository;
         this.authorizationGuard = authorizationGuard;
+        this.pricingServiceClient = pricingServiceClient;
 
         this.meterRegistry = meterRegistry;
 
@@ -117,10 +121,24 @@ public class RideServiceImpl implements RideService {
         // 1. Convert DTO → Entity
         RideEntity ride = RideMapper.toEntity(request);
 
-        // 2. Save to DB
+        // 2. Fetch Pricing Quote
+        try {
+            pricingServiceClient.quote(
+                    ride.getPickupLatitude(), ride.getPickupLongitude(),
+                    ride.getDropLatitude(), ride.getDropLongitude(),
+                    "STANDARD" // Hardcoded for v1, should be in request
+            ).ifPresent(quoteData -> {
+                ride.setFareEstimateId(quoteData.estimateId());
+                ride.setFare((double) quoteData.breakdown().total()); // Base fare estimate
+            });
+        } catch (Exception e) {
+            log.warn("Failed to get pricing quote for ride, falling back to null fare", e);
+        }
+
+        // 3. Save to DB
         RideEntity savedRide = rideRepository.save(ride);
 
-        // 3. Convert Entity → Response DTO
+        // 4. Convert Entity → Response DTO
 
         // 4.  publish event
         producer.publishRideRequested(
@@ -171,6 +189,7 @@ public class RideServiceImpl implements RideService {
                     .eventId(UUID.randomUUID().toString())
                     .rideId(updatedRide.getId())
                     .driverUserId(updatedRide.getDriverUserId())
+                    .riderUserId(updatedRide.getRiderUserId())
                     .cancelledAt(LocalDateTime.now().toString())
                     .build());
         }
@@ -211,10 +230,22 @@ public class RideServiceImpl implements RideService {
         // 3. Move to next state
         state.complete(ride);
 
-        // 4. Save updated ride
+        // 4. Fetch Pricing Finalize
+        if (ride.getFareEstimateId() != null) {
+            try {
+                pricingServiceClient.finalizeFare(ride.getId().toString(), ride.getFareEstimateId())
+                        .ifPresent(finalizeData -> {
+                            ride.setFare((double) finalizeData.finalBreakdown().total());
+                        });
+            } catch (Exception e) {
+                log.warn("Failed to finalize pricing for ride {}", rideId, e);
+            }
+        }
+
+        // 5. Save updated ride
         RideEntity updatedRide = rideRepository.save(ride);
 
-        // 5. Tell matchmaking the driver is free again — this is what actually releases
+        // 6. Tell matchmaking the driver is free again — this is what actually releases
         // their reservation now that acceptance no longer does (see handleAcceptance).
         producer.publishRideCompleted(RideCompletedEvent.builder()
                 .eventId(UUID.randomUUID().toString())
@@ -229,6 +260,42 @@ public class RideServiceImpl implements RideService {
             fareDistribution.record(updatedRide.getFare());
         }
         ridesCompletedCounter.increment();
+        return RideMapper.toResponseDTO(updatedRide);
+    }
+
+    @Override
+    @Transactional
+    public RideResponseDTO retryMatch(UUID rideId, Long currentUserId) {
+        // 1. Fetch ride
+        RideEntity ride = getRide(rideId);
+        authorizationGuard.assertRiderOwnsRide(ride, currentUserId);
+
+        // 2. Get current state (throws InvalidStateTransitionException unless
+        // ride is NO_DRIVER_AVAILABLE — see RideState.retryMatch impls)
+        RideState state = rideStateFactory.getState(ride.getStatus());
+        state.retryMatch(ride);
+
+        // 3. Save updated ride
+        RideEntity updatedRide = rideRepository.save(ride);
+
+        // 4. Re-publish ride-requested so matchmaking starts a fresh dispatch
+        // for this SAME rideId (matchmaking resets its existing FAILED session
+        // in place rather than creating a duplicate one for the same ride).
+        producer.publishRideRequested(
+                RideRequestedEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .rideId(updatedRide.getId())
+                        .riderUserId(updatedRide.getRiderUserId())
+                        .pickupLocation(updatedRide.getPickupLocation())
+                        .dropLocation(updatedRide.getDropLocation())
+                        .pickupLatitude(updatedRide.getPickupLatitude())
+                        .pickupLongitude(updatedRide.getPickupLongitude())
+                        .dropLatitude(updatedRide.getDropLatitude())
+                        .dropLongitude(updatedRide.getDropLongitude())
+                        .build()
+        );
+
+        ridesRequestedCounter.increment();
         return RideMapper.toResponseDTO(updatedRide);
     }
 

@@ -21,10 +21,10 @@ public class MatchmakingServiceClient {
     private final RestTemplate restTemplate;
     private final MeterRegistry meterRegistry;
 
-    @Value("${services.matchmaking.url}")
+    @Value("${services.matchmaking.url:http://matchmaking-service:8086}")
     private String matchmakingUrl;
 
-    @Value("${internal.api.secret}")
+    @Value("${internal.api.secret:secret}")
     private String internalApiSecret;
 
     public MatchmakingServiceClient(RestTemplate restTemplate, MeterRegistry meterRegistry) {

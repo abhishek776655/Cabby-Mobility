@@ -23,4 +23,9 @@ public interface RideService {
 
     RideResponseDTO cancelRide(UUID rideId, Long currentUserId);
 
+    // Rider-initiated "search again" on the same ride — only valid from
+    // NO_DRIVER_AVAILABLE. Re-publishes ride-requested so matchmaking restarts
+    // discovery for this same rideId instead of the rider creating a new ride.
+    RideResponseDTO retryMatch(UUID rideId, Long currentUserId);
+
 }

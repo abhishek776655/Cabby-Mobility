@@ -91,6 +91,13 @@ public class LocationRepositoryImpl implements LocationRepository {
         return activeDrivers;
     }
 
+    @Override
+    public List<Point> getDriverLocations(List<String> driverUserIds) {
+        if (driverUserIds == null || driverUserIds.isEmpty()) return Collections.emptyList();
+        String[] members = driverUserIds.toArray(new String[0]);
+        return geoOps.position(RedisKeys.DRIVERS_GEO, members);
+    }
+
     // 5️⃣ Reap drivers whose heartbeat TTL has expired without ever calling offline
     @Override
     public void evictStaleDrivers() {

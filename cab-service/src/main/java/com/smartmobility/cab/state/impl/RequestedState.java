@@ -30,4 +30,8 @@ public class RequestedState implements RideState {
         throw new InvalidStateTransitionException("Cannot fail in REQUESTED state - must match first");
     }
 
+    public void retryMatch(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot retry - ride not in NO_DRIVER_AVAILABLE state");
+    }
+
 }

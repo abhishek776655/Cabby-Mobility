@@ -30,4 +30,8 @@ public class MatchingState implements RideState {
     public void failNoDriver(RideEntity ride) {
         ride.setStatus(RideStatus.NO_DRIVER_AVAILABLE);
     }
+
+    public void retryMatch(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot retry - ride not in NO_DRIVER_AVAILABLE state");
+    }
 }

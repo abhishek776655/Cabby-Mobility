@@ -97,6 +97,27 @@ public class LocationServiceImpl implements LocationService {
         }
     }
 
+    @Override
+    public List<com.smartmobility.location_service.dto.DriverLocationDTO> getDriverLocations(List<Long> driverUserIds) {
+        if (driverUserIds == null || driverUserIds.isEmpty()) return List.of();
+        
+        List<String> ids = driverUserIds.stream().map(String::valueOf).toList();
+        List<org.springframework.data.geo.Point> points = locationRepository.getDriverLocations(ids);
+        
+        java.util.List<com.smartmobility.location_service.dto.DriverLocationDTO> result = new java.util.ArrayList<>();
+        for (int i = 0; i < ids.size(); i++) {
+            org.springframework.data.geo.Point point = points.get(i);
+            if (point != null) {
+                result.add(com.smartmobility.location_service.dto.DriverLocationDTO.builder()
+                        .driverUserId(driverUserIds.get(i))
+                        .lat(point.getY())
+                        .lng(point.getX())
+                        .build());
+            }
+        }
+        return result;
+    }
+
     private void validateDriverUserId(Long driverUserId) {
         if (driverUserId == null) {
             throw new InvalidLocationException("driverUserId is required");

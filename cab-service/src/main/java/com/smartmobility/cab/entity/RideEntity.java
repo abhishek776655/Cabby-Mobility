@@ -47,6 +47,9 @@ public class RideEntity {
     private RideStatus status;
 
     private Double fare;
+    
+    @Column(name = "fare_estimate_id")
+    private UUID fareEstimateId;
 
     private LocalDateTime createdAt;
 

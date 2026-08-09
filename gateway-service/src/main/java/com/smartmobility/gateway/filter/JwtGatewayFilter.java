@@ -49,9 +49,11 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/rides",
                     "/rides/*",
                     "/rides/*/cancel",
+                    "/rides/*/retry",
                     "/dispatch/**",
                     "/matchmaking/**",
-                    "/riders/**"
+                    "/riders/**",
+                    "/fares/**"
             )
     );
 

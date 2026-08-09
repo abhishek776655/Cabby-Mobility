@@ -16,5 +16,6 @@ public class MatchmakingFailedEvent {
     private String eventId;
     private UUID rideId;
     private String reason;
+    private Long riderUserId;
     private LocalDateTime failedAt;
 }

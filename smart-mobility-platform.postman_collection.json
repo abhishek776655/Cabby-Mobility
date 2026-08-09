@@ -22,7 +22,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
                   "    console.log(\"Rider Token & ID updated from registration\");",
@@ -69,7 +69,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
                   "    pm.collectionVariables.set(\"rider_refresh_token\", jsonData.data.refreshToken);",
@@ -117,7 +117,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
                   "    console.log(\"Driver Token & ID updated from registration\");",
@@ -164,7 +164,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.accessToken) {",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.accessToken) {",
                   "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
                   "    pm.collectionVariables.set(\"driver_refresh_token\", jsonData.data.refreshToken);",
@@ -544,8 +544,8 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.id) {",
-                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.id);",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.rideId) {",
+                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.rideId);",
                   "    pm.collectionVariables.set(\"active_pickup_lat\", 28.6139);",
                   "    pm.collectionVariables.set(\"active_pickup_lng\", 77.2090);",
                   "    console.log(\"Saved Active Ride ID and Pickup Coordinates\");",
@@ -720,7 +720,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.status === \"SUCCESS\" && jsonData.data && jsonData.data.dispatchId) {",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.dispatchId) {",
                   "    pm.collectionVariables.set(\"active_dispatch_id\", jsonData.data.dispatchId);",
                   "    console.log(\"Saved Active Dispatch ID: \" + jsonData.data.dispatchId);",
                   "}"
@@ -960,7 +960,7 @@
                   "pm.test(\"Rider registered successfully\", function () {",
                   "    pm.response.to.have.status(200);",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.success).to.equal(true);",
                   "    pm.expect(jsonData.data.accessToken).to.exist;",
                   "    pm.collectionVariables.set(\"rider_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"rider_user_id\", jsonData.data.userId);",
@@ -1005,7 +1005,7 @@
                   "pm.test(\"Driver registered successfully\", function () {",
                   "    pm.response.to.have.status(200);",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.success).to.equal(true);",
                   "    pm.expect(jsonData.data.accessToken).to.exist;",
                   "    pm.collectionVariables.set(\"driver_token\", jsonData.data.accessToken);",
                   "    pm.collectionVariables.set(\"driver_user_id\", jsonData.data.userId);",
@@ -1050,7 +1050,7 @@
                   "pm.test(\"Driver profile created successfully\", function () {",
                   "    pm.response.to.have.status(200);",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
+                  "    pm.expect(jsonData.success).to.equal(true);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1141,9 +1141,9 @@
                   "pm.test(\"Ride requested successfully\", function () {",
                   "    pm.response.to.have.status(200);",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"SUCCESS\");",
-                  "    pm.expect(jsonData.data.id).to.exist;",
-                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.id);",
+                  "    pm.expect(jsonData.success).to.equal(true);",
+                  "    pm.expect(jsonData.data.rideId).to.exist;",
+                  "    pm.collectionVariables.set(\"active_ride_id\", jsonData.data.rideId);",
                   "    pm.collectionVariables.set(\"active_pickup_lat\", 28.6139);",
                   "    pm.collectionVariables.set(\"active_pickup_lng\", 77.2090);",
                   "});"
@@ -1758,6 +1758,101 @@
             }
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Pricing & Routing (Internal)",
+      "description": "Internal APIs for pricing and surge",
+      "item": [
+        {
+          "name": "Quote All Vehicle Types (with Route)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLat\": {{active_pickup_lat}},\n  \"pickupLng\": {{active_pickup_lng}},\n  \"dropLat\": 28.6129,\n  \"dropLng\": 77.2295\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/fares/quote-all",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "fares",
+                "quote-all"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Fare Estimate Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Internal-Secret",
+                "value": "secret"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/fares/{{ride_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "fares",
+                "{{ride_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Surge Multiplier",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Internal-Secret",
+                "value": "secret"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/surge/ZONE_A?multiplier=1.5&ttlSeconds=3600",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "surge",
+                "ZONE_A"
+              ],
+              "query": [
+                {
+                  "key": "multiplier",
+                  "value": "1.5"
+                },
+                {
+                  "key": "ttlSeconds",
+                  "value": "3600"
+                }
+              ]
+            }
+          }
         }
       ]
     }

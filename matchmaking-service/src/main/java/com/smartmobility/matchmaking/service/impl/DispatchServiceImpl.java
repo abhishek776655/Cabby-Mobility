@@ -2,6 +2,9 @@ package com.smartmobility.matchmaking.service.impl;
 
 import com.smartmobility.matchmaking.client.DriverServiceClient;
 import com.smartmobility.matchmaking.client.LocationServiceClient;
+import com.smartmobility.matchmaking.client.RoutingServiceClient;
+import com.smartmobility.matchmaking.dto.DriverLocationDTO;
+import com.smartmobility.matchmaking.dto.MatrixRequest;
 import com.smartmobility.matchmaking.config.MatchmakingProperties;
 import com.smartmobility.matchmaking.domain.AttemptStatus;
 import com.smartmobility.matchmaking.domain.DispatchStatus;
@@ -39,6 +42,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final AssignmentAttemptRepository attemptRepository;
     private final LocationServiceClient locationClient;
     private final DriverServiceClient driverClient;
+    private final RoutingServiceClient routingClient;
     private final ReservationService reservationService;
     private final DispatchCacheService cacheService;
     private final MatchmakingEventProducer eventProducer;
@@ -54,59 +58,135 @@ public class DispatchServiceImpl implements DispatchService {
     @Override
     @Transactional
     public void startDispatch(RideRequestedEvent event) {
-        if (dispatchRepository.findByRideId(event.getRideId()).isPresent()) {
-            log.info("Dispatch already exists for ride {}", event.getRideId());
-            return;
+        Optional<DispatchSessionEntity> existing = dispatchRepository.findByRideId(event.getRideId());
+        DispatchSessionEntity session;
+
+        if (existing.isPresent()) {
+            session = existing.get();
+            if (session.getStatus() != DispatchStatus.FAILED && session.getStatus() != DispatchStatus.CANCELLED) {
+                log.info("Dispatch already in progress for ride {}", event.getRideId());
+                return;
+            }
+            // Terminal session for this ride — reuse the row in place for a retry
+            // ("search again") rather than inserting a second row per ride.
+            log.info("Retrying dispatch for ride {} (was {})", event.getRideId(), session.getStatus());
+            session.setRadiusSweepIndex(0);
+            session.setRetryCount(0);
+            session.setCurrentDriverUserId(null);
+            session.setRemainingCandidates(null);
+        } else {
+            session = new DispatchSessionEntity();
+            session.setDispatchId(UUID.randomUUID());
+            session.setRideId(event.getRideId());
+            session.setCreatedAt(Instant.now());
         }
 
-        List<Long> nearbyDriverUserIds = locationClient.findNearbyDrivers(
-            event.getPickupLatitude(), event.getPickupLongitude(),
-            discoveryRadiusKm, discoveryLimit);
-
-        log.info("Nearby drivers for ride {}: {}", event.getRideId(), nearbyDriverUserIds);
-
-        if (nearbyDriverUserIds.isEmpty()) {
-            publishNoDriverFound(event, "NO_DRIVER_AVAILABLE");
-            return;
-        }
-
-        List<Long> eligibleDriverUserIds = filterEligibleDrivers(nearbyDriverUserIds);
-
-        if (eligibleDriverUserIds.isEmpty()) {
-            publishNoDriverFound(event, "NO_DRIVER_AVAILABLE");
-            return;
-        }
-
-        List<Long> rankedDriverUserIds = rankDrivers(eligibleDriverUserIds, event.getPickupLatitude(), event.getPickupLongitude());
-
-        Instant expiresAt = Instant.now().plus(properties.getDispatchTimeoutSeconds(), ChronoUnit.SECONDS);
-        
-        DispatchSessionEntity session = new DispatchSessionEntity();
-        session.setDispatchId(UUID.randomUUID());
-        session.setRideId(event.getRideId());
         session.setRiderUserId(event.getRiderUserId());
         session.setPickupLatitude(event.getPickupLatitude());
         session.setPickupLongitude(event.getPickupLongitude());
         session.setPickupLocation(event.getPickupLocation());
         session.setStatus(DispatchStatus.SEARCHING);
-        session.setCurrentDriverUserId(null);
-        session.setRetryCount(0);
-        session.setCreatedAt(Instant.now());
-        session.setExpiresAt(expiresAt);
+        session.setExpiresAt(Instant.now().plus(properties.getDispatchTimeoutSeconds(), ChronoUnit.SECONDS));
         session.setUpdatedAt(Instant.now());
-        
+        dispatchRepository.save(session);
+
+        searchAndDispatch(session);
+    }
+
+    /**
+     * Discover, filter, and rank drivers at the session's current radius tier.
+     * On success, assigns the top candidate; on zero candidates, escalates to
+     * the next wider radius (or fails if none remain) via {@link #widenOrFail}.
+     */
+    private void searchAndDispatch(DispatchSessionEntity session) {
+        double radiusKm = currentRadiusKm(session.getRadiusSweepIndex());
+
+        List<Long> nearbyDriverUserIds = locationClient.findNearbyDrivers(
+            session.getPickupLatitude(), session.getPickupLongitude(), radiusKm, discoveryLimit);
+
+        log.info("Nearby drivers for ride {} at radius {}km (tier {}): {}",
+            session.getRideId(), radiusKm, session.getRadiusSweepIndex(), nearbyDriverUserIds);
+
+        List<Long> eligibleDriverUserIds = filterEligibleDrivers(nearbyDriverUserIds);
+        List<Long> rankedDriverUserIds = rankDrivers(eligibleDriverUserIds, session.getPickupLatitude(), session.getPickupLongitude());
+
+        if (rankedDriverUserIds.isEmpty()) {
+            widenOrFail(session);
+            return;
+        }
+
         try {
             session.setRemainingCandidates(objectMapper.writeValueAsString(rankedDriverUserIds));
         } catch (Exception e) {
             log.error("Failed to serialize candidates", e);
         }
-
+        session.setStatus(DispatchStatus.SEARCHING);
+        session.setUpdatedAt(Instant.now());
         dispatchRepository.save(session);
-        
-        cacheService.saveDispatchState(session.getDispatchId().toString(), 
-            DispatchStatus.SEARCHING.name(), null, expiresAt.toEpochMilli());
 
-        assignNextCandidate(session, event);
+        cacheService.saveDispatchState(session.getDispatchId().toString(),
+            DispatchStatus.SEARCHING.name(), null, session.getExpiresAt().toEpochMilli());
+
+        assignNextCandidate(session);
+    }
+
+    /**
+     * Called when the current radius tier has no viable candidates left (zero
+     * found, or all exhausted via rejection/timeout). Escalates to the next
+     * wider radius tier for the scheduler to retry after a short delay, or
+     * gives up for good once every tier has been tried.
+     */
+    private void widenOrFail(DispatchSessionEntity session) {
+        List<Double> radiusSteps = properties.getDiscovery().getRadiusStepsKm();
+        int nextIndex = session.getRadiusSweepIndex() + 1;
+
+        if (!radiusSteps.isEmpty() && nextIndex < radiusSteps.size()) {
+            session.setRadiusSweepIndex(nextIndex);
+            // Fresh retry budget for the new tier — otherwise a session that already
+            // hit dispatchMaxRetries at the old (smaller) radius would widen once and
+            // then immediately re-widen on the very first rejection at the new radius.
+            session.setRetryCount(0);
+            session.setStatus(DispatchStatus.WIDENING_SEARCH);
+            Instant nextAttemptAt = Instant.now().plus(properties.getDiscovery().getSweepDelaySeconds(), ChronoUnit.SECONDS);
+            session.setExpiresAt(nextAttemptAt);
+            session.setUpdatedAt(Instant.now());
+            dispatchRepository.save(session);
+
+            cacheService.saveDispatchState(session.getDispatchId().toString(),
+                DispatchStatus.WIDENING_SEARCH.name(), null, nextAttemptAt.toEpochMilli());
+
+            log.info("No drivers for ride {}, widening to radius tier {} (next attempt at {})",
+                session.getRideId(), nextIndex, nextAttemptAt);
+            return;
+        }
+
+        completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+    }
+
+    private double currentRadiusKm(int radiusSweepIndex) {
+        List<Double> steps = properties.getDiscovery().getRadiusStepsKm();
+        if (steps.isEmpty()) {
+            return discoveryRadiusKm; // legacy fixed default if misconfigured to an empty list
+        }
+        return steps.get(Math.min(radiusSweepIndex, steps.size() - 1));
+    }
+
+    /**
+     * Re-run discovery at the session's (already advanced) radius tier — invoked
+     * by the scheduler once a WIDENING_SEARCH session's delay has elapsed.
+     */
+    @Override
+    @Transactional
+    public void retryWiderSearch(UUID dispatchId) {
+        DispatchSessionEntity session = dispatchRepository.findById(dispatchId)
+            .orElseThrow(() -> new DispatchNotFoundException("Dispatch not found: " + dispatchId));
+
+        if (session.getStatus() != DispatchStatus.WIDENING_SEARCH) {
+            log.warn("retryWiderSearch called for dispatch {} but status is {}, skipping", dispatchId, session.getStatus());
+            return;
+        }
+
+        searchAndDispatch(session);
     }
 
     @Override
@@ -148,7 +228,7 @@ public class DispatchServiceImpl implements DispatchService {
 
         List<Long> remaining = parseCandidates(session.getRemainingCandidates());
         if (remaining.isEmpty()) {
-            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            widenOrFail(session);
             return;
         }
 
@@ -175,6 +255,7 @@ public class DispatchServiceImpl implements DispatchService {
             .eventId(UUID.randomUUID().toString())
             .rideId(session.getRideId())
             .driverUserId(driverUserId)
+            .riderUserId(session.getRiderUserId())
             .assignedAt(java.time.LocalDateTime.now())
             .build();
         
@@ -189,9 +270,9 @@ public class DispatchServiceImpl implements DispatchService {
         recordAttempt(session.getDispatchId(), driverUserId, null, AttemptStatus.REJECTED, "DRIVER_REJECTED");
 
         List<Long> remaining = parseCandidates(session.getRemainingCandidates());
-        
+
         if (remaining.isEmpty()) {
-            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            widenOrFail(session);
         } else {
             retryWithNextCandidate(session, remaining);
         }
@@ -199,15 +280,17 @@ public class DispatchServiceImpl implements DispatchService {
 
     private void retryWithNextCandidate(DispatchSessionEntity session, List<Long> remainingDrivers) {
         if (remainingDrivers.isEmpty()) {
-            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            widenOrFail(session);
             return;
         }
 
-        // Bound tail latency: without this, a full sweep of discoveryLimit (40) candidates
-        // at timeoutSeconds each could take up to 40 * timeoutSeconds to fail. Cap retries so
-        // dispatch fails fast and the rider isn't left waiting on an exhaustive search.
+        // Bound tail latency at this radius tier: without this, a full sweep of
+        // discoveryLimit (40) candidates at timeoutSeconds each could take up to
+        // 40 * timeoutSeconds before escalating. Cap retries so a tier gives up
+        // (and widens) reasonably fast rather than exhaustively working through
+        // every candidate first.
         if (session.getRetryCount() >= properties.getDispatchMaxRetries()) {
-            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            widenOrFail(session);
             return;
         }
 
@@ -253,6 +336,7 @@ public class DispatchServiceImpl implements DispatchService {
             .eventId(UUID.randomUUID().toString())
             .rideId(session.getRideId())
             .reason(reason)
+            .riderUserId(session.getRiderUserId())
             .failedAt(java.time.LocalDateTime.now())
             .build();
         
@@ -315,14 +399,46 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     private List<Long> rankDrivers(List<Long> driverUserIds, double lat, double lng) {
-        return driverUserIds;
-    }
-
-    private void assignNextCandidate(DispatchSessionEntity session, RideRequestedEvent event) {
-        List<Long> candidates = parseCandidates(session.getRemainingCandidates());
+        if (driverUserIds == null || driverUserIds.isEmpty()) return List.of();
         
+        List<DriverLocationDTO> locations = locationClient.getDriverLocationsBatch(driverUserIds);
+        if (locations.isEmpty()) return driverUserIds;
+
+        List<MatrixRequest.Location> targets = locations.stream()
+            .map(loc -> MatrixRequest.Location.builder().lat(loc.getLat()).lng(loc.getLng()).build())
+            .toList();
+
+        var durationsOpt = routingClient.getDurationsSeconds(lat, lng, targets);
+        if (durationsOpt.isEmpty()) {
+            log.warn("Routing service unavailable, falling back to unranked driver order");
+            return driverUserIds;
+        }
+        List<Double> durations = durationsOpt.get();
+
+        // Match locations back to driverUserIds based on order, then sort by duration
+        List<DriverRanking> rankings = new java.util.ArrayList<>();
+        for (int i = 0; i < locations.size(); i++) {
+            if (i >= durations.size()) {
+                log.warn("Routing service returned fewer durations than requested drivers, falling back to unranked driver order");
+                return driverUserIds;
+            }
+            rankings.add(new DriverRanking(locations.get(i).getDriverUserId(), durations.get(i)));
+        }
+
+        rankings.sort(java.util.Comparator.comparingDouble(DriverRanking::duration));
+
+        return rankings.stream()
+            .map(DriverRanking::driverUserId)
+            .toList();
+    }
+    
+    private record DriverRanking(Long driverUserId, Double duration) {}
+
+    private void assignNextCandidate(DispatchSessionEntity session) {
+        List<Long> candidates = parseCandidates(session.getRemainingCandidates());
+
         if (candidates.isEmpty()) {
-            completeWithFailure(session, "NO_DRIVER_AVAILABLE");
+            widenOrFail(session);
             return;
         }
 
@@ -337,7 +453,7 @@ public class DispatchServiceImpl implements DispatchService {
                 session.setRemainingCandidates(objectMapper.writeValueAsString(nextCandidates));
             } catch (Exception e) {}
             dispatchRepository.save(session);
-            assignNextCandidate(session, event);
+            assignNextCandidate(session);
             return;
         }
 
@@ -395,17 +511,6 @@ public class DispatchServiceImpl implements DispatchService {
             case ACCEPTED -> AssignmentStatus.ASSIGNED;
             case REJECTED, TIMEOUT, FAILED -> AssignmentStatus.FAILED;
         };
-    }
-
-    private void publishNoDriverFound(RideRequestedEvent event, String reason) {
-        MatchmakingFailedEvent failedEvent = MatchmakingFailedEvent.builder()
-            .eventId(UUID.randomUUID().toString())
-            .rideId(event.getRideId())
-            .reason(reason)
-            .failedAt(java.time.LocalDateTime.now())
-            .build();
-        
-        eventProducer.publishMatchmakingFailed(failedEvent);
     }
 
     private List<Long> parseCandidates(String candidatesJson) {

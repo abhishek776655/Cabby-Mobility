@@ -14,6 +14,8 @@ public interface DispatchService {
 
     void handleDispatchTimeout(UUID dispatchId);
 
+    void retryWiderSearch(UUID dispatchId);
+
     void cancelDispatch(UUID rideId, String reason);
 
     Optional<DispatchStatusResponse> getDispatchStatus(UUID rideId);

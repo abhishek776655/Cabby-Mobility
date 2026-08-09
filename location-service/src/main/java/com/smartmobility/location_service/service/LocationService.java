@@ -11,4 +11,6 @@ public interface LocationService {
     void updateDriverLocation(Long driverUserId, Long currentUserId, double lat, double lng);
 
     List<Long> getNearbyDrivers(double lat, double lng, double radiusKm, int limit);
+
+    List<com.smartmobility.location_service.dto.DriverLocationDTO> getDriverLocations(List<Long> driverUserIds);
 }

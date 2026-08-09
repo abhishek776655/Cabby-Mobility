@@ -30,4 +30,8 @@ public class OngoingState implements RideState {
     public void failNoDriver(RideEntity ride) {
         throw new InvalidStateTransitionException("Cannot fail - ride already ongoing");
     }
+
+    public void retryMatch(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot retry - ride not in NO_DRIVER_AVAILABLE state");
+    }
 }

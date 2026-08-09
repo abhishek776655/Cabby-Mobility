@@ -104,6 +104,10 @@ Terminal/alternate states: CANCELLED, NO_DRIVER_AVAILABLE
 | Location Service | 8090 | Spring Boot + Redis |
 | Matchmaking Service | 8087 | Spring Boot + Kafka |
 | Realtime Gateway | 8095 | Spring Boot + WebSocket |
+| Notification Service | 8096 | Spring Boot + Postgres |
+| Routing Service | 8097 | Spring Boot + Redis |
+| Pricing Service | 8092 | Spring Boot + Redis |
+| Payment Service | 8093 | Spring Boot |
 | Eureka (peer1) | 8761 | Spring Boot |
 | Eureka (peer2) | 8762 | Spring Boot |
 | PostgreSQL | 5432 | - |
@@ -140,6 +144,9 @@ Gateway -->|"driver routes"| Driver["Driver Service :8084"]
 Gateway -->|"rider routes"| Rider["Rider Service :8082"]
 Gateway -->|"location driver routes"| Location["Location Service :8090"]
 Gateway -->|"matchmaking routes"| Matchmaking["Matchmaking Service :8087"]
+Gateway -->|"pricing routes"| Pricing["Pricing Service :8092"]
+Gateway -->|"payment routes"| Payment["Payment Service :8093"]
+Gateway -->|"routing routes"| Routing["Routing Service :8097"]
 
 Auth -->|"auth.registered (outbox → Kafka)"| Kafka[("Kafka :9092")]
 Kafka -->|"auth.registered"| User
@@ -170,6 +177,9 @@ Kafka -->|"driver-location-events or assignment-requested"| Realtime
 Realtime -->|"trip topic"| RiderApp
 Realtime -->|"driver topic"| DriverApp
 
+Kafka -->|"domain events"| Notification["Notification Service :8096"]
+Notification -->|"delivery records"| Postgres
+
 Gateway -.->|"service discovery"| Eureka["Eureka :8761"]
 Auth -.->|"registers"| Eureka
 User -.->|"registers"| Eureka
@@ -179,6 +189,10 @@ Rider -.->|"registers"| Eureka
 Location -.->|"registers"| Eureka
 Matchmaking -.->|"registers"| Eureka
 Realtime -.->|"registers"| Eureka
+Notification -.->|"registers"| Eureka
+Pricing -.->|"registers"| Eureka
+Payment -.->|"registers"| Eureka
+Routing -.->|"registers"| Eureka
 ```
 
 ## Component Diagrams
@@ -196,9 +210,15 @@ sequenceDiagram
     participant Redis
     participant RealtimeGateway
     participant Driver
+    participant PricingService
+    participant RoutingService
 
     Rider->>Gateway: POST ride request
     Gateway->>CabService: Route to ride creation API
+    CabService->>PricingService: GET /internal/estimate (requires X-Internal-Secret)
+    PricingService->>RoutingService: GET /internal/routes (requires X-Internal-Secret)
+    RoutingService-->>PricingService: distance, duration, polyline
+    PricingService-->>CabService: estimated fare + route details
     CabService->>CabService: Persist ride as MATCHING
     CabService->>Kafka: Publish ride-requested
 
@@ -273,20 +293,27 @@ sequenceDiagram
 
 #### RIDE STATE MACHINE
 
+`POST /rides` sets status directly to `MATCHING` (REQUESTED is only reached via a separate admin-only
+`/rides/{id}/match` path, not normal ride creation). Matchmaking widens its search radius (5km, 10km, 15km)
+before ever failing — ride stays `MATCHING` through that whole widen loop; see Matchmaking Service section
+for the internal `DispatchStatus` sweep. Cancel is **rejected** once `DRIVER_ASSIGNED` (no way to back out
+after a driver accepts, by current design — not modeled as a transition below because it doesn't exist).
+
 ```mermaid
 stateDiagram-v2
-    [*] --> REQUESTED
-    REQUESTED --> MATCHING: ride-requested published
+    [*] --> MATCHING: POST /rides (normal path)
+    [*] --> REQUESTED: admin-only path (rare)
+    REQUESTED --> MATCHING: match()
+    REQUESTED --> CANCELLED: rider cancels
     MATCHING --> DRIVER_ASSIGNED: driver-assigned consumed
-    MATCHING --> NO_DRIVER_AVAILABLE: matchmaking-failed consumed
+    MATCHING --> NO_DRIVER_AVAILABLE: matchmaking-failed consumed (all radius tiers exhausted)
+    MATCHING --> CANCELLED: rider cancels
     DRIVER_ASSIGNED --> ONGOING: ride started
     ONGOING --> COMPLETED: ride completed
-    REQUESTED --> CANCELLED: rider cancels
-    MATCHING --> CANCELLED: rider cancels
-    DRIVER_ASSIGNED --> CANCELLED: rider/driver cancels
+    NO_DRIVER_AVAILABLE --> MATCHING: retryMatch() via POST /rides/{id}/retry, same rideId
+    NO_DRIVER_AVAILABLE --> CANCELLED: rider cancels (no-op, already terminal)
     COMPLETED --> [*]
     CANCELLED --> [*]
-    NO_DRIVER_AVAILABLE --> [*]
 ```
 
 #### DRIVER STATE MACHINE
@@ -517,20 +544,65 @@ RealtimeGateway -->|"trip topic"| Rider
 
 ---
 
-## 10. Pricing Service (Future)
+---
+
+## 10. Notification Service
 
 ### Responsibilities
 
-* Fare calculation
-* Surge pricing
+* Centralized outbound messaging (push/sms/email stubs)
+* Persistence of notification delivery records
+* Idempotency handling for domain events
+
+### Communication
+
+* Consumes → `ride-requested`, `driver-assigned`, `matchmaking-failed`, `ride-cancelled`, `ride-completed`, `assignment-requested`
+* Database → `notification_db`
 
 ---
 
-## 11. Payment Service (Future)
+## 11. Pricing Service
 
 ### Responsibilities
 
-* Payment processing
+* Upfront fare calculation
+* Dynamic pricing (surge multipliers) based on supply/demand
+* Promotions and discounts
+
+### Communication
+
+* REST (Inbound) ← `CabService` (for fare estimates)
+* REST (Outbound) → `RoutingService` (for distance and time)
+* Database → `pricing_db` (optional, if tracking receipts/promotions)
+
+---
+
+## 12. Payment Service
+
+### Responsibilities
+
+* Secure payment processing (Stripe/PayPal integration)
+* Wallet management
+
+### Communication
+
+* REST (Inbound) ← `Gateway`, `CabService`
+
+---
+
+## 13. Routing Service
+
+### Responsibilities
+
+* Interfacing with 3rd party mapping providers (Google Maps, Mapbox, OSRM)
+* Calculating distance, duration, and generating polylines
+* Caching common routes in Redis to minimize API costs
+
+### Communication
+
+* REST (Inbound) ← `PricingService`, `Gateway`
+* Outbound (HTTP) → Google Maps / Mapbox
+* Cache → `Redis`
 
 ---
 

@@ -72,21 +72,90 @@ only thing stopping a direct, unauthenticated call to that endpoint from anywher
 
 ## 🧠 Ride State Model
 
-```
-REQUESTED → MATCHING → ACCEPTED → STARTED → COMPLETED
-                            ↓
-                         CANCELLED
+`RideStatus` enum: `REQUESTED, MATCHING, DRIVER_ASSIGNED, ONGOING, COMPLETED, CANCELLED, NO_DRIVER_AVAILABLE`.
+
+`POST /rides` sets status **directly to `MATCHING`** (`RideMapper.toEntity`) — `REQUESTED` is not actually
+reached by normal ride creation; it only exists for the separate admin-only `POST /rides/{id}/match` path.
+
+```mermaid
+stateDiagram-v2
+    [*] --> MATCHING : POST /rides (normal creation path)
+    [*] --> REQUESTED : admin-only path (rarely used)
+
+    REQUESTED --> MATCHING : match()
+    REQUESTED --> CANCELLED : cancel()
+
+    MATCHING --> DRIVER_ASSIGNED : assignDriver()\n(driver-assigned event, after matchmaking accepts)
+    MATCHING --> NO_DRIVER_AVAILABLE : failNoDriver()\n(matchmaking-failed event, ALL radius tiers exhausted)
+    MATCHING --> CANCELLED : cancel()\n(rider cancels while still searching)
+
+    DRIVER_ASSIGNED --> ONGOING : start()\n(driver starts trip)
+
+    ONGOING --> COMPLETED : complete()\n(driver completes trip, fare finalized)
+
+    NO_DRIVER_AVAILABLE --> MATCHING : retryMatch()\nPOST /rides/{id}/retry\nSAME rideId, re-publishes ride-requested
+    NO_DRIVER_AVAILABLE --> CANCELLED : cancel() (no-op, already terminal)
+
+    COMPLETED --> [*]
+    CANCELLED --> [*]
+
+    note right of DRIVER_ASSIGNED
+        cancel() is REJECTED here
+        (InvalidStateTransitionException) —
+        no way to cancel once a driver accepts
+    end note
+
+    note right of MATCHING
+        Matchmaking silently widens its
+        search radius (5km to 10km to 15km)
+        before ever failing here — ride
+        stays MATCHING through the whole
+        widen loop. See sequence diagram below.
+    end note
 ```
 
-### State Transitions
+### Cross-service: the widen-then-retry flow (matchmaking-service)
 
-| From State | To State | Trigger |
-|------------|----------|---------|
-| REQUESTED | MATCHING | ride-requested published |
-| MATCHING | ACCEPTED | driver-assigned consumed |
-| ACCEPTED | STARTED | driver starts ride |
-| STARTED | COMPLETED | driver completes ride |
-| MATCHING/ACCEPTED | CANCELLED | rider cancels |
+`RideStatus.MATCHING` maps to a much busier internal state machine in matchmaking-service
+(`DispatchStatus`), invisible to the rider until it's exhausted:
+
+```mermaid
+sequenceDiagram
+    participant Cab as cab-service
+    participant MM as matchmaking-service
+    participant Sched as DispatchTimeoutScheduler
+
+    Cab->>MM: RideRequestedEvent (ride-requested)
+    MM->>MM: SEARCHING @ 5km
+    alt drivers found
+        MM->>Cab: DriverAssignedEvent
+        Cab->>Cab: MATCHING -> DRIVER_ASSIGNED
+    else zero candidates (or all rejected/timed out)
+        MM->>MM: WIDENING_SEARCH, radiusSweepIndex++
+        Note over MM: expiresAt = now + 8s
+        Sched->>MM: retryWiderSearch() after delay
+        MM->>MM: SEARCHING @ 10km
+        alt still empty
+            MM->>MM: WIDENING_SEARCH -> retry @ 15km
+            alt every radius tier exhausted
+                MM->>Cab: MatchmakingFailedEvent (NO_DRIVER_AVAILABLE)
+                Cab->>Cab: MATCHING -> NO_DRIVER_AVAILABLE
+                Note over Cab: rider can now POST /rides/{id}/retry
+                Cab->>MM: RideRequestedEvent (same rideId)
+                Note over MM: existing FAILED session reset in place,\nradiusSweepIndex back to 0
+            end
+        end
+    end
+```
+
+### Known gap: cancelling before a driver is assigned doesn't stop the search
+
+`cancelRide()` only publishes `RideCancelledEvent` to matchmaking `if (driverUserId != null)`. Cancelling
+while still `MATCHING` — the common case, since that's exactly when a rider would want to cancel — never
+notifies matchmaking. Its dispatch session keeps running (including the widen loop above) and keeps
+offering the cancelled ride to drivers. If one eventually accepts, `handleDriverAssignedEvent` calls
+`state.assignDriver()` on a ride that's already `CANCELLED`, which throws `InvalidStateTransitionException`
+with no defined recovery path. Not fixed as part of the widen/retry feature — flagged here for follow-up.
 
 ---
 
@@ -188,10 +257,12 @@ CREATE TABLE processed_events (
 ```java
 interface RideState {
     void match(RideEntity ride);
-    void assignDriver(RideEntity ride, UUID driverId);
+    void assignDriver(RideEntity ride, Long driverUserId);
     void start(RideEntity ride);
     void complete(RideEntity ride);
     void cancel(RideEntity ride);
+    void failNoDriver(RideEntity ride);
+    void retryMatch(RideEntity ride); // rider-initiated "search again" — only valid from NO_DRIVER_AVAILABLE
 }
 ```
 
@@ -199,14 +270,15 @@ interface RideState {
 
 ### State Implementations
 
-| State           | Allowed Actions      |
-| --------------- | -------------------- |
-| REQUESTED       | match, cancel        |
-| MATCHING        | assignDriver, cancel |
-| DRIVER_ASSIGNED | start, cancel        |
-| ONGOING         | complete             |
-| COMPLETED       | none                 |
-| CANCELLED       | none                 |
+| State                | Allowed Actions              |
+| --------------------- | ----------------------------- |
+| REQUESTED             | match, cancel                 |
+| MATCHING              | assignDriver, cancel, failNoDriver |
+| DRIVER_ASSIGNED       | start (cancel is **rejected** — no cancellation once a driver accepts) |
+| ONGOING               | complete                      |
+| COMPLETED             | none (terminal)                |
+| CANCELLED             | none (terminal)                |
+| NO_DRIVER_AVAILABLE   | retryMatch, cancel (no-op)     |
 
 ---
 
@@ -232,6 +304,18 @@ GET /api/rides/{id}
 
 ```
 POST /api/rides/{id}/cancel
+```
+
+---
+
+### Retry Match (Rider)
+
+Only valid when ride status is `NO_DRIVER_AVAILABLE`. Transitions back to `MATCHING` and re-publishes
+`ride-requested` for the same rideId — matchmaking-service resets its existing failed dispatch session in
+place and restarts the radius sweep from tier 0, rather than the rider creating an entirely new ride.
+
+```
+POST /rides/{id}/retry
 ```
 
 ---

@@ -87,4 +87,15 @@ public class FallbackController {
                 )
         ));
     }
+
+    @RequestMapping("/fallback/pricing")
+    public Mono<ResponseEntity<Map<String, Object>>> pricingFallback() {
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Pricing service temporarily unavailable"
+                )
+        ));
+    }
 }

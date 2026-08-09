@@ -15,6 +15,6 @@ public interface DispatchSessionRepository extends JpaRepository<DispatchSession
 
     Optional<DispatchSessionEntity> findByRideId(UUID rideId);
 
-    @Query("SELECT d FROM DispatchSessionEntity d WHERE d.expiresAt < :now AND d.status IN ('ASSIGNMENT_SENT', 'RETRYING')")
+    @Query("SELECT d FROM DispatchSessionEntity d WHERE d.expiresAt < :now AND d.status IN ('ASSIGNMENT_SENT', 'RETRYING', 'WIDENING_SEARCH')")
     List<DispatchSessionEntity> findExpiredDispatchSessions(Instant now);
 }

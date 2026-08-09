@@ -41,6 +41,11 @@ public class DispatchSessionEntity {
     @Column(name = "retry_count")
     private Integer retryCount = 0;
 
+    // Index into MatchmakingProperties.discovery.radiusStepsKm — which search
+    // radius tier this session is currently (or about to be) searching at.
+    @Column(name = "radius_sweep_index")
+    private Integer radiusSweepIndex = 0;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -70,6 +75,8 @@ public class DispatchSessionEntity {
     public void setRemainingCandidates(String remainingCandidates) { this.remainingCandidates = remainingCandidates; }
     public Integer getRetryCount() { return retryCount; }
     public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+    public Integer getRadiusSweepIndex() { return radiusSweepIndex; }
+    public void setRadiusSweepIndex(Integer radiusSweepIndex) { this.radiusSweepIndex = radiusSweepIndex; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getExpiresAt() { return expiresAt; }

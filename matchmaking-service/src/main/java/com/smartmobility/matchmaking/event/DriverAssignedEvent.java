@@ -16,5 +16,6 @@ public class DriverAssignedEvent {
     private String eventId;
     private UUID rideId;
     private Long driverUserId;
+    private Long riderUserId;
     private LocalDateTime assignedAt;
 }

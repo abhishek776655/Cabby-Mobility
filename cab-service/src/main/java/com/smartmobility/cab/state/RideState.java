@@ -15,4 +15,8 @@ public interface RideState {
     void cancel(RideEntity ride);
 
     void failNoDriver(RideEntity ride);
+
+    // Rider-initiated "search again" on the SAME ride — only valid from
+    // NO_DRIVER_AVAILABLE. Every other state rejects it.
+    void retryMatch(RideEntity ride);
 }

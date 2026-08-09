@@ -12,6 +12,7 @@ public class CancelledState implements RideState {
     public void complete(RideEntity ride) { throw error(); }
     public void cancel(RideEntity ride) { throw error(); }
     public void failNoDriver(RideEntity ride) { throw error(); }
+    public void retryMatch(RideEntity ride) { throw error(); }
 
     private RuntimeException error() {
         return new InvalidStateTransitionException("Ride already cancelled");

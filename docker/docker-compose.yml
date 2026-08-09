@@ -452,6 +452,110 @@ services:
       retries: 10
       start_period: 60s
 
+  notification-service:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ../notification-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    deploy:
+      replicas: 1
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      eureka-service-2:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    ports: ["8002:8002"]
+    volumes: ["valhalla_tiles:/custom_files"]
+    environment:
+      # Southern-zone (multi-state) OOM-killed tile_build (6M nodes / 15.5M
+      # edges) on this host — switched to a single-city extract per the v1
+      # scope decision. Verified via `curl -sI` before use (200 OK, ~37MB);
+      # matches the city used in existing test fixtures (Connaught Place /
+      # India Gate coords in DispatchServiceImplTest).
+      tile_urls: "https://download.bbbike.org/osm/bbbike/NewDelhi/NewDelhi.osm.pbf"
+      # False builds tiles from tile_urls on first run (required — fresh
+      # volumes have no tiles yet). Once valhalla_tiles has built tiles,
+      # this can flip to "True" to skip rebuilding on every restart.
+      use_tiles_ignore_pbf: "False"
+    mem_limit: 2g
+    cpus: "1.5"
+    healthcheck: {test: ["CMD","curl","-f","http://localhost:8002/status"], start_period: 120s}
+
+  routing-service:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ../routing-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    deploy:
+      replicas: 1
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      eureka-service-2:
+        condition: service_healthy
+      valhalla:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8097/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  pricing-service:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ../pricing-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    deploy:
+      replicas: 1
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      eureka-service-2:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
 volumes:
 
   kafka-data:
@@ -461,3 +565,4 @@ volumes:
   prometheus_data:
   grafana_data:
   eureka-service-2-target:
+  valhalla_tiles:

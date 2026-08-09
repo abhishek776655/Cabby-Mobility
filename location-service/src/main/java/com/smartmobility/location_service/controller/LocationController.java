@@ -75,4 +75,13 @@ public class LocationController {
 
         return ResponseEntity.ok(ApiResponseBuilder.success(drivers, "Nearby drivers found"));
     }
+
+    // 5️⃣ Batch driver locations (INTERNAL ONLY)
+    @PostMapping("/internal/locations/batch")
+    public ResponseEntity<ApiResponse<List<com.smartmobility.location_service.dto.DriverLocationDTO>>> getDriverLocations(
+            @RequestBody List<Long> driverUserIds) {
+        
+        List<com.smartmobility.location_service.dto.DriverLocationDTO> locations = locationService.getDriverLocations(driverUserIds);
+        return ResponseEntity.ok(ApiResponseBuilder.success(locations, "Locations retrieved"));
+    }
 }

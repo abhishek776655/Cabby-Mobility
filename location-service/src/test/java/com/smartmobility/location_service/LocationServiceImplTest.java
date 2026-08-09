@@ -9,6 +9,7 @@ import com.smartmobility.location_service.security.DriverOwnershipGuard;
 import com.smartmobility.location_service.service.impl.LocationServiceImpl;
 import org.junit.jupiter.api.Test;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.data.geo.Point;
 
 import java.util.List;
 
@@ -179,6 +180,11 @@ class LocationServiceImplTest {
         @Override
         public Long countOnlineDrivers() {
             return 0L;
+        }
+
+        @Override
+        public List<Point> getDriverLocations(List<String> driverUserIds) {
+            return List.of();
         }
     }
 

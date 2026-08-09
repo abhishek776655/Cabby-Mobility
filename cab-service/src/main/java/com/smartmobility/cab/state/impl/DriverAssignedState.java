@@ -30,4 +30,8 @@ public void cancel(RideEntity ride) {
     public void failNoDriver(RideEntity ride) {
         throw new InvalidStateTransitionException("Cannot fail - driver already assigned");
     }
+
+    public void retryMatch(RideEntity ride) {
+        throw new InvalidStateTransitionException("Cannot retry - ride not in NO_DRIVER_AVAILABLE state");
+    }
 }

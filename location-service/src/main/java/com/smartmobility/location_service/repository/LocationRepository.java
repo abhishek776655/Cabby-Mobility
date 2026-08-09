@@ -14,6 +14,8 @@ public interface LocationRepository {
 
     List<String> findNearbyDrivers(double lat, double lng, double radiusKm, int limit);
 
+    List<org.springframework.data.geo.Point> getDriverLocations(List<String> driverUserIds);
+
     /**
      * Removes drivers with no active heartbeat (driver:active:* TTL expired) from the
      * geo/available sets so a crashed driver that never called offline doesn't linger forever.

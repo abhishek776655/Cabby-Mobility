@@ -26,7 +26,12 @@ public class DispatchTimeoutScheduler {
             dispatchRepository.findExpiredDispatchSessions(Instant.now());
 
         for (DispatchSessionEntity session : expiredSessions) {
-            if (session.getStatus() == DispatchStatus.ASSIGNMENT_SENT ||
+            if (session.getStatus() == DispatchStatus.WIDENING_SEARCH) {
+                log.info("Retrying wider search for dispatch {} (radius tier {})",
+                    session.getDispatchId(), session.getRadiusSweepIndex());
+
+                dispatchService.retryWiderSearch(session.getDispatchId());
+            } else if (session.getStatus() == DispatchStatus.ASSIGNMENT_SENT ||
                 session.getStatus() == DispatchStatus.RETRYING) {
 
                 log.info("Handling timeout for dispatch {} driver {}",

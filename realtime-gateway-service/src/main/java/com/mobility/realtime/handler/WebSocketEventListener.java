@@ -11,17 +11,26 @@ import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class WebSocketEventListener {
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final AtomicInteger activeConnections;
+
+    public WebSocketEventListener(StompAuthChannelInterceptor stompAuthChannelInterceptor, io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+        this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.activeConnections = new AtomicInteger(0);
+        meterRegistry.gauge("websocket.connections.active", this.activeConnections);
+    }
 
     @EventListener
     public void handleSessionConnect(SessionConnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        log.info("WebSocket connected sessionId={}", accessor.getSessionId());
+        int count = activeConnections.incrementAndGet();
+        log.info("WebSocket connected sessionId={} (Total active: {})", accessor.getSessionId(), count);
     }
 
     @EventListener
@@ -33,8 +42,9 @@ public class WebSocketEventListener {
 
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
-        log.info("WebSocket disconnected sessionId={} closeStatus={}",
-                event.getSessionId(), event.getCloseStatus());
+        int count = activeConnections.decrementAndGet();
+        log.info("WebSocket disconnected sessionId={} closeStatus={} (Total active: {})",
+                event.getSessionId(), event.getCloseStatus(), count);
         stompAuthChannelInterceptor.removeSession(event.getSessionId());
     }
 }

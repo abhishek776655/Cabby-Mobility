@@ -43,6 +43,19 @@ public class RideController {
         );
     }
 
+    @PostMapping("/{rideId}/retry")
+    public ResponseEntity<ApiResponse<RideResponseDTO>> retryMatch(
+            @RequestHeader("X-User-Id") Long currentUserId,
+            @PathVariable UUID rideId) {
+
+        return ResponseEntity.ok(
+                ApiResponseBuilder.success(
+                        rideService.retryMatch(rideId, currentUserId),
+                        "Searching for a driver again"
+                )
+        );
+    }
+
     @PostMapping("/{rideId}/cancel")
     public ResponseEntity<ApiResponse<RideResponseDTO>> cancelRide(
             @RequestHeader("X-User-Id") Long currentUserId,

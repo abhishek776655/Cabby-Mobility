@@ -1,6 +1,7 @@
 package com.smartmobility.cab.state.impl;
 
 import com.smartmobility.cab.entity.RideEntity;
+import com.smartmobility.cab.entity.RideStatus;
 import com.smartmobility.cab.exception.InvalidStateTransitionException;
 import com.smartmobility.cab.state.RideState;
 
@@ -42,5 +43,10 @@ public class NoDriverAvailableState implements RideState {
     @Override
     public void failNoDriver(RideEntity ride) {
         // Already in this state - no-op
+    }
+
+    @Override
+    public void retryMatch(RideEntity ride) {
+        ride.setStatus(RideStatus.MATCHING);
     }
 }

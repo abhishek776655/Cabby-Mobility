@@ -2,6 +2,7 @@ package com.smartmobility.matchmaking.service.impl;
 
 import com.smartmobility.matchmaking.client.DriverServiceClient;
 import com.smartmobility.matchmaking.client.LocationServiceClient;
+import com.smartmobility.matchmaking.client.RoutingServiceClient;
 import com.smartmobility.matchmaking.config.MatchmakingProperties;
 import com.smartmobility.matchmaking.domain.DispatchStatus;
 import com.smartmobility.matchmaking.dto.DriverResponseDTO;
@@ -47,6 +48,9 @@ class DispatchServiceImplTest {
     private DriverServiceClient driverClient;
 
     @Mock
+    private RoutingServiceClient routingClient;
+
+    @Mock
     private ReservationService reservationService;
 
     @Mock
@@ -69,6 +73,7 @@ class DispatchServiceImplTest {
                 attemptRepository,
                 locationClient,
                 driverClient,
+                routingClient,
                 reservationService,
                 cacheService,
                 eventProducer,

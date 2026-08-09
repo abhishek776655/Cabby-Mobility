@@ -91,6 +91,29 @@ public class LocationServiceClient {
         return List.of();
     }
 
+    public List<com.smartmobility.matchmaking.dto.DriverLocationDTO> getDriverLocationsBatch(List<Long> driverUserIds) {
+        if (driverUserIds == null || driverUserIds.isEmpty()) return List.of();
+        
+        Timer.Sample sample = Timer.start(meterRegistry);
+        String outcome = "success";
+        try {
+            ApiResponse<List<com.smartmobility.matchmaking.dto.DriverLocationDTO>> response = restClient.post()
+                    .uri("/internal/locations/batch")
+                    .header("X-Internal-Secret", internalApiSecret)
+                    .body(driverUserIds)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<ApiResponse<List<com.smartmobility.matchmaking.dto.DriverLocationDTO>>>() {});
+
+            return response != null && response.getData() != null ? response.getData() : List.of();
+        } catch (Exception e) {
+            outcome = "error";
+            log.error("Failed to fetch driver locations batch: {}", e.getMessage(), e);
+            return List.of();
+        } finally {
+            recordDependencyMetric(sample, "location-service", "get-locations-batch", outcome);
+        }
+    }
+
     private void recordDependencyMetric(Timer.Sample sample, String dependency, String operation, String outcome) {
         sample.stop(Timer.builder("dependency.client.duration")
                 .description("Duration of downstream service calls")
