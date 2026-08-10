@@ -1,12 +1,16 @@
 package com.smartmobility.matchmaking.kafka;
 
+import com.smartmobility.matchmaking.entity.OutboxEvent;
 import com.smartmobility.matchmaking.event.AssignmentRequestedEvent;
 import com.smartmobility.matchmaking.event.DriverAssignedEvent;
+import com.smartmobility.matchmaking.event.DriverAssignmentFailedEvent;
 import com.smartmobility.matchmaking.event.MatchmakingFailedEvent;
+import com.smartmobility.matchmaking.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
@@ -18,30 +22,42 @@ public class MatchmakingEventProducerImpl implements MatchmakingEventProducer {
     private static final String ASSIGNMENT_REQUESTED_TOPIC = "assignment-requested";
     private static final String DRIVER_ASSIGNMENT_FAILED_TOPIC = "driver-assignment-failed";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional
     public void publishAssignmentRequested(AssignmentRequestedEvent event) {
-        log.info("Publishing assignment requested event for ride: {} driver: {}",
-                event.getRideId(), event.getDriverUserId());
-        kafkaTemplate.send(ASSIGNMENT_REQUESTED_TOPIC, event.getRideId().toString(), event);
+        save(ASSIGNMENT_REQUESTED_TOPIC, event.getRideId().toString(), "assignment-requested", event);
     }
 
     @Override
+    @Transactional
     public void publishDriverAssigned(DriverAssignedEvent event) {
-        log.info("Publishing driver assigned event for ride: {}", event.getRideId());
-        kafkaTemplate.send(DRIVER_ASSIGNED_TOPIC, event.getRideId().toString(), event);
+        save(DRIVER_ASSIGNED_TOPIC, event.getRideId().toString(), "driver-assigned", event);
     }
 
     @Override
+    @Transactional
     public void publishMatchmakingFailed(MatchmakingFailedEvent event) {
-        log.info("Publishing matchmaking failed event for ride: {}", event.getRideId());
-        kafkaTemplate.send(MATCHMAKING_FAILED_TOPIC, event.getRideId().toString(), event);
+        save(MATCHMAKING_FAILED_TOPIC, event.getRideId().toString(), "matchmaking-failed", event);
     }
 
     @Override
-    public void publishDriverAssignmentFailed(com.smartmobility.matchmaking.event.DriverAssignmentFailedEvent event) {
-        log.info("Publishing driver assignment failed event for driver: {} reason: {}", event.getDriverUserId(), event.getReason());
-        kafkaTemplate.send(DRIVER_ASSIGNMENT_FAILED_TOPIC, event.getDriverUserId().toString(), event);
+    @Transactional
+    public void publishDriverAssignmentFailed(DriverAssignmentFailedEvent event) {
+        save(DRIVER_ASSIGNMENT_FAILED_TOPIC, event.getDriverUserId().toString(), "driver-assignment-failed", event);
+    }
+
+    private void save(String topic, String aggregateId, String eventType, Object payload) {
+        String json = objectMapper.writeValueAsString(payload);
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+            .aggregateId(aggregateId)
+            .eventType(eventType)
+            .topic(topic)
+            .payload(json)
+            .build();
+        outboxEventRepository.save(outboxEvent);
+        log.info("Queued {} event for ride/driver {} in outbox", eventType, aggregateId);
     }
 }
