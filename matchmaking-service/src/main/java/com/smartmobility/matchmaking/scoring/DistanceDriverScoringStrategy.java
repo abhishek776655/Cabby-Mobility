@@ -6,15 +6,17 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
-public class RatingDriverScoringStrategy implements DriverScoringStrategy {
-
-    private static final double MAX_RATING = 5.0;
+public class DistanceDriverScoringStrategy implements DriverScoringStrategy {
 
     @Override
     public Map<Long, Double> score(List<DriverCandidate> candidates) {
+        double minEta = candidates.stream().mapToDouble(DriverCandidate::etaSeconds).min().orElse(0.0);
+        double maxEta = candidates.stream().mapToDouble(DriverCandidate::etaSeconds).max().orElse(0.0);
+        double range = maxEta - minEta;
+
         return candidates.stream().collect(Collectors.toMap(
             DriverCandidate::driverUserId,
-            c -> c.rating() == null ? 0.0 : c.rating() / MAX_RATING
+            c -> range == 0.0 ? 1.0 : (maxEta - c.etaSeconds()) / range
         ));
     }
 }
