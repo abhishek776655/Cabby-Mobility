@@ -11,6 +11,7 @@ public class MatchmakingProperties {
 
     private Assignment assignment = new Assignment();
     private Discovery discovery = new Discovery();
+    private Scoring scoring = new Scoring();
 
     /**
      * Safety-net TTL (seconds) for a driver's reservation once they accept a ride, covering
@@ -55,4 +56,15 @@ public class MatchmakingProperties {
 
     public long getOnTripReservationSeconds() { return onTripReservationSeconds; }
     public void setOnTripReservationSeconds(long onTripReservationSeconds) { this.onTripReservationSeconds = onTripReservationSeconds; }
+
+    public static class Scoring {
+        private double ratingWeight = 0.4;
+        private double distanceWeight = 0.6;
+        public double getRatingWeight() { return ratingWeight; }
+        public void setRatingWeight(double ratingWeight) { this.ratingWeight = ratingWeight; }
+        public double getDistanceWeight() { return distanceWeight; }
+        public void setDistanceWeight(double distanceWeight) { this.distanceWeight = distanceWeight; }
+    }
+
+    public Scoring getScoring() { return scoring; }
 }

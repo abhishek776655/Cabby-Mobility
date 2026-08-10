@@ -59,6 +59,9 @@ class DispatchServiceImplTest {
     @Mock
     private MatchmakingEventProducer eventProducer;
 
+    @Mock
+    private com.smartmobility.matchmaking.scoring.CompositeDriverRankingService rankingService;
+
     private MatchmakingProperties properties;
 
     private DispatchServiceImpl dispatchService;
@@ -78,7 +81,8 @@ class DispatchServiceImplTest {
                 cacheService,
                 eventProducer,
                 new ObjectMapper(),
-                properties
+                properties,
+                rankingService
         );
     }
 

@@ -48,6 +48,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final MatchmakingEventProducer eventProducer;
     private final ObjectMapper objectMapper;
     private final MatchmakingProperties properties;
+    private final com.smartmobility.matchmaking.scoring.CompositeDriverRankingService rankingService;
 
     @Value("${matchmaking.default-radius-km:5}")
     private double discoveryRadiusKm;
@@ -400,7 +401,7 @@ public class DispatchServiceImpl implements DispatchService {
 
     private List<Long> rankDrivers(List<Long> driverUserIds, double lat, double lng) {
         if (driverUserIds == null || driverUserIds.isEmpty()) return List.of();
-        
+
         List<DriverLocationDTO> locations = locationClient.getDriverLocationsBatch(driverUserIds);
         if (locations.isEmpty()) return driverUserIds;
 
@@ -415,24 +416,28 @@ public class DispatchServiceImpl implements DispatchService {
         }
         List<Double> durations = durationsOpt.get();
 
-        // Match locations back to driverUserIds based on order, then sort by duration
-        List<DriverRanking> rankings = new java.util.ArrayList<>();
-        for (int i = 0; i < locations.size(); i++) {
-            if (i >= durations.size()) {
-                log.warn("Routing service returned fewer durations than requested drivers, falling back to unranked driver order");
-                return driverUserIds;
-            }
-            rankings.add(new DriverRanking(locations.get(i).getDriverUserId(), durations.get(i)));
+        if (durations.size() < locations.size()) {
+            log.warn("Routing service returned fewer durations than requested drivers, falling back to unranked driver order");
+            return driverUserIds;
         }
 
-        rankings.sort(java.util.Comparator.comparingDouble(DriverRanking::duration));
+        List<Long> rankedIds = locations.stream().map(DriverLocationDTO::getDriverUserId).toList();
+        List<com.smartmobility.matchmaking.dto.DriverResponseDTO> driverDetails = driverClient.getDriversBatch(rankedIds);
+        Map<Long, Double> ratingsByDriver = driverDetails.stream()
+            .filter(java.util.Objects::nonNull)
+            .collect(java.util.stream.Collectors.toMap(
+                com.smartmobility.matchmaking.dto.DriverResponseDTO::getUserId,
+                com.smartmobility.matchmaking.dto.DriverResponseDTO::getRating));
 
-        return rankings.stream()
-            .map(DriverRanking::driverUserId)
-            .toList();
+        List<com.smartmobility.matchmaking.scoring.DriverCandidate> candidates = new java.util.ArrayList<>();
+        for (int i = 0; i < locations.size(); i++) {
+            Long driverUserId = locations.get(i).getDriverUserId();
+            candidates.add(new com.smartmobility.matchmaking.scoring.DriverCandidate(
+                driverUserId, ratingsByDriver.get(driverUserId), durations.get(i)));
+        }
+
+        return rankingService.rank(candidates);
     }
-    
-    private record DriverRanking(Long driverUserId, Double duration) {}
 
     private void assignNextCandidate(DispatchSessionEntity session) {
         List<Long> candidates = parseCandidates(session.getRemainingCandidates());
