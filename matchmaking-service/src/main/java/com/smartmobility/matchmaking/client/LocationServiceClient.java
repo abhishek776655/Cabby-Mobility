@@ -2,6 +2,7 @@ package com.smartmobility.matchmaking.client;
 
 import com.smartmobility.matchmaking.dto.ApiResponse;
 import com.smartmobility.matchmaking.dto.NearbyDriversRequest;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class LocationServiceClient {
         this.internalApiSecret = internalApiSecret;
     }
 
+    @CircuitBreaker(name = "matchmaking-location-find-nearby", fallbackMethod = "findNearbyDriversFallback")
     public List<Long> findNearbyDrivers(double latitude, double longitude, double radiusKm, int limit) {
         NearbyDriversRequest request = NearbyDriversRequest.builder()
                 .lat(latitude)
@@ -91,6 +93,7 @@ public class LocationServiceClient {
         return List.of();
     }
 
+    @CircuitBreaker(name = "matchmaking-location-batch", fallbackMethod = "getDriverLocationsBatchFallback")
     public List<com.smartmobility.matchmaking.dto.DriverLocationDTO> getDriverLocationsBatch(List<Long> driverUserIds) {
         if (driverUserIds == null || driverUserIds.isEmpty()) return List.of();
         
@@ -112,6 +115,16 @@ public class LocationServiceClient {
         } finally {
             recordDependencyMetric(sample, "location-service", "get-locations-batch", outcome);
         }
+    }
+
+    List<Long> findNearbyDriversFallback(double latitude, double longitude, double radiusKm, int limit, Throwable t) {
+        log.warn("Circuit breaker open or findNearbyDrivers exhausted, returning empty: {}", t.getMessage());
+        return List.of();
+    }
+
+    List<com.smartmobility.matchmaking.dto.DriverLocationDTO> getDriverLocationsBatchFallback(List<Long> driverUserIds, Throwable t) {
+        log.warn("Circuit breaker open or getDriverLocationsBatch exhausted, returning empty: {}", t.getMessage());
+        return List.of();
     }
 
     private void recordDependencyMetric(Timer.Sample sample, String dependency, String operation, String outcome) {
