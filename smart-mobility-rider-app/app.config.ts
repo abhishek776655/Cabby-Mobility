@@ -15,8 +15,11 @@ const config: ExpoConfig = {
           "Allow Smart Mobility to use your location to find nearby drivers and show your pickup point.",
       },
     ],
+    "expo-secure-store",
+    "expo-status-bar",
   ],
   ios: {
+    bundleIdentifier: "com.anonymous.smart-mobility-rider-app",
     supportsTablet: false,
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_IOS_API_KEY,

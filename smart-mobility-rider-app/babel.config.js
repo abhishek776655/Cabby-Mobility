@@ -23,7 +23,9 @@ module.exports = function (api) {
           logTimings: false,
         },
       ],
-      "react-native-reanimated/plugin",
+      // Reanimated 4 delegates worklet compilation to react-native-worklets — the old
+      // "react-native-reanimated/plugin" entry point is deprecated as of v4.
+      "react-native-worklets/plugin",
     ].filter(Boolean),
   };
 };
