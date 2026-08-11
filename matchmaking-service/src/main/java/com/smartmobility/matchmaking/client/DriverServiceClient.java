@@ -1,6 +1,7 @@
 package com.smartmobility.matchmaking.client;
 
 import com.smartmobility.matchmaking.dto.DriverResponseDTO;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ public class DriverServiceClient {
         this.meterRegistry = meterRegistry;
     }
 
+    @CircuitBreaker(name = "matchmaking-driver-get-driver", fallbackMethod = "getDriverFallback")
     public DriverResponseDTO getDriver(Long userId) {
         Timer.Sample sample = Timer.start(meterRegistry);
         String outcome = "success";
@@ -47,6 +49,7 @@ public class DriverServiceClient {
         }
     }
 
+    @CircuitBreaker(name = "matchmaking-driver-batch", fallbackMethod = "getDriversBatchFallback")
     public List<DriverResponseDTO> getDriversBatch(List<Long> userIds) {
         Timer.Sample sample = Timer.start(meterRegistry);
         String outcome = "success";
@@ -81,6 +84,16 @@ public class DriverServiceClient {
         } finally {
             recordDependencyMetric(sample, "driver-service", "mark-unavailable", outcome);
         }
+    }
+
+    DriverResponseDTO getDriverFallback(Long userId, Throwable t) {
+        log.warn("Circuit breaker open or getDriver exhausted for driver {}, returning null: {}", userId, t.getMessage());
+        return null;
+    }
+
+    List<DriverResponseDTO> getDriversBatchFallback(List<Long> userIds, Throwable t) {
+        log.warn("Circuit breaker open or getDriversBatch exhausted, returning empty: {}", t.getMessage());
+        return List.of();
     }
 
     private void recordDependencyMetric(Timer.Sample sample, String dependency, String operation, String outcome) {
