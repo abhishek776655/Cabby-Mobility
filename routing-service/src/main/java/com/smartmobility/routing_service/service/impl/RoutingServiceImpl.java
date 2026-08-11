@@ -9,12 +9,14 @@ import com.smartmobility.routing_service.dto.RouteRequest;
 import com.smartmobility.routing_service.dto.RouteResponse;
 import com.smartmobility.routing_service.exception.RouteNotFoundException;
 import com.smartmobility.routing_service.mapper.PolylineDecoder;
+import com.smartmobility.routing_service.redis.RouteCacheService;
 import com.smartmobility.routing_service.service.RoutingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,9 +25,19 @@ import java.util.stream.Collectors;
 public class RoutingServiceImpl implements RoutingService {
 
     private final ValhallaClient valhallaClient;
+    private final RouteCacheService routeCacheService;
 
     @Override
     public RouteResponse getRoute(RouteRequest request) {
+        Optional<RouteResponse> cached = routeCacheService.get(
+            request.getOriginLat(), request.getOriginLng(),
+            request.getDestLat(), request.getDestLng(), request.getCostingModel());
+        if (cached.isPresent()) {
+            log.debug("Route cache hit for {},{} -> {},{}",
+                request.getOriginLat(), request.getOriginLng(), request.getDestLat(), request.getDestLng());
+            return cached.get();
+        }
+
         ValhallaRouteRequest valhallaRequest = ValhallaRouteRequest.builder()
                 .locations(List.of(
                         ValhallaRouteRequest.Location.builder().lat(request.getOriginLat()).lon(request.getOriginLng()).build(),
@@ -53,13 +65,18 @@ public class RoutingServiceImpl implements RoutingService {
         // We assume one leg for simple A to B
         String polyline = trip.getLegs().get(0).getShape();
 
-        return RouteResponse.builder()
+        RouteResponse response = RouteResponse.builder()
                 .polyline(polyline)
                 .coordinates(PolylineDecoder.decode(polyline))
                 .distanceMeters(trip.getSummary().getLength() * 1000)
                 .durationSeconds(trip.getSummary().getTime())
                 .legs(legs)
                 .build();
+
+        routeCacheService.put(request.getOriginLat(), request.getOriginLng(),
+            request.getDestLat(), request.getDestLng(), request.getCostingModel(), response);
+
+        return response;
     }
 
     @Override

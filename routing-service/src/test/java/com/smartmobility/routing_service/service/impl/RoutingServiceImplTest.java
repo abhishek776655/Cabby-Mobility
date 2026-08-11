@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,11 +28,16 @@ public class RoutingServiceImplTest {
     @Mock
     private ValhallaClient valhallaClient;
 
+    @Mock
+    private com.smartmobility.routing_service.redis.RouteCacheService routeCacheService;
+
     private RoutingServiceImpl routingService;
 
     @BeforeEach
     void setUp() {
-        routingService = new RoutingServiceImpl(valhallaClient);
+        routingService = new RoutingServiceImpl(valhallaClient, routeCacheService);
+        lenient().when(routeCacheService.get(anyDouble(), anyDouble(), anyDouble(), anyDouble(), any()))
+            .thenReturn(java.util.Optional.empty());
     }
 
     @Test
