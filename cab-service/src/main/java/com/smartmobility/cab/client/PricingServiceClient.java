@@ -1,5 +1,6 @@
 package com.smartmobility.cab.client;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class PricingServiceClient {
 
     public record FareBreakdown(long baseFare, long distanceFare, long timeFare, long surgeAmount, long total, double surgeMultiplier) {}
 
+    @CircuitBreaker(name = "cab-pricing-quote", fallbackMethod = "quoteFallback")
     public Optional<QuoteData> quote(double pickupLat, double pickupLng, double dropLat, double dropLng, String vehicleType) {
         Timer.Sample sample = Timer.start(meterRegistry);
         FareQuoteRequest requestBody = new FareQuoteRequest(pickupLat, pickupLng, dropLat, dropLng, vehicleType);
@@ -81,6 +83,7 @@ public class PricingServiceClient {
         return Optional.empty();
     }
 
+    @CircuitBreaker(name = "cab-pricing-finalize", fallbackMethod = "finalizeFareFallback")
     public Optional<FinalizeData> finalizeFare(String rideId, UUID estimateId) {
         Timer.Sample sample = Timer.start(meterRegistry);
         FareFinalizeRequest requestBody = new FareFinalizeRequest(rideId, estimateId);
@@ -114,6 +117,16 @@ public class PricingServiceClient {
         
         sample.stop(meterRegistry.timer("client.pricing.finalize", "status", "failure"));
         log.error("All {} attempts to finalize fare failed", MAX_ATTEMPTS);
+        return Optional.empty();
+    }
+
+    Optional<QuoteData> quoteFallback(double pickupLat, double pickupLng, double dropLat, double dropLng, String vehicleType, Throwable t) {
+        log.warn("Circuit breaker open or quote exhausted, returning empty: {}", t.getMessage());
+        return Optional.empty();
+    }
+
+    Optional<FinalizeData> finalizeFareFallback(String rideId, UUID estimateId, Throwable t) {
+        log.warn("Circuit breaker open or finalizeFare exhausted for ride {}, returning empty: {}", rideId, t.getMessage());
         return Optional.empty();
     }
 }
