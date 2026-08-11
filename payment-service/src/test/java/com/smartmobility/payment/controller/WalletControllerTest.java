@@ -4,6 +4,7 @@ import com.smartmobility.payment.dto.ApiResponse;
 import com.smartmobility.payment.dto.TopupRequest;
 import com.smartmobility.payment.dto.WalletBalanceResponse;
 import com.smartmobility.payment.entity.WalletEntity;
+import com.smartmobility.payment.entity.WalletTransactionEntity;
 import com.smartmobility.payment.service.WalletService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,7 @@ class WalletControllerTest {
     void getTransactionsDelegatesToService() {
         when(walletService.getTransactions(1L)).thenReturn(List.of());
 
-        ResponseEntity<ApiResponse<List<?>>> response = (ResponseEntity) controller.getTransactions(1L);
+        ResponseEntity<ApiResponse<List<WalletTransactionEntity>>> response = controller.getTransactions(1L);
 
         assertEquals(true, response.getBody().isSuccess());
     }

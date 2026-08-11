@@ -32,7 +32,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/drivers/**",
                     "/location/**",
                     "/matchmaking/**",
-                    "/riders/**"
+                    "/riders/**",
+                    "/fares/**",
+                    "/wallet/**"
             ),
             "DRIVER", Set.of(
                     "/driver/**",
@@ -53,7 +55,8 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/dispatch/**",
                     "/matchmaking/**",
                     "/riders/**",
-                    "/fares/**"
+                    "/fares/**",
+                    "/wallet/**"
             )
     );
 
@@ -66,8 +69,11 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().toString();
 
-        // 1. Skip public routes
-        if (path.startsWith("/auth")) {
+        // 1. Skip public routes. /ws is skipped here too — STOMP auth happens in-band on the
+        // CONNECT frame (realtime-gateway-service's StompAuthChannelInterceptor), not on this
+        // HTTP upgrade request, which native WebSocket clients typically can't attach a custom
+        // Authorization header to.
+        if (path.startsWith("/auth") || path.startsWith("/ws")) {
             return chain.filter(exchange);
         }
 

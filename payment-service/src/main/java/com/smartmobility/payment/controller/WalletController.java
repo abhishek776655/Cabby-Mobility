@@ -19,21 +19,26 @@ public class WalletController {
 
     private final WalletService walletService;
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<WalletBalanceResponse>> getBalance(@PathVariable Long userId) {
+    /**
+     * Scoped to the caller's own wallet via X-User-Id (gateway-injected from the JWT, same
+     * ownership convention as rider-service's /riders/me) rather than an arbitrary path userId —
+     * a path-param version would let any authenticated rider read/top-up anyone else's wallet.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<WalletBalanceResponse>> getBalance(@RequestHeader("X-User-Id") Long userId) {
         var wallet = walletService.getOrCreateWallet(userId);
         return ResponseEntity.ok(ApiResponse.success(
                 WalletBalanceResponse.builder().userId(wallet.getUserId()).balance(wallet.getBalance()).build()));
     }
 
-    @PostMapping("/{userId}/topup")
-    public ResponseEntity<ApiResponse<Void>> topup(@PathVariable Long userId, @Valid @RequestBody TopupRequest request) {
+    @PostMapping("/me/topup")
+    public ResponseEntity<ApiResponse<Void>> topup(@RequestHeader("X-User-Id") Long userId, @Valid @RequestBody TopupRequest request) {
         walletService.credit(userId, request.getAmount(), request.getReferenceId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    @GetMapping("/{userId}/transactions")
-    public ResponseEntity<ApiResponse<List<WalletTransactionEntity>>> getTransactions(@PathVariable Long userId) {
+    @GetMapping("/me/transactions")
+    public ResponseEntity<ApiResponse<List<WalletTransactionEntity>>> getTransactions(@RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(ApiResponse.success(walletService.getTransactions(userId)));
     }
 }
