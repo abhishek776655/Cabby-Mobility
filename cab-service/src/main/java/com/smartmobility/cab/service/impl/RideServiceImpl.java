@@ -126,7 +126,7 @@ public class RideServiceImpl implements RideService {
             pricingServiceClient.quote(
                     ride.getPickupLatitude(), ride.getPickupLongitude(),
                     ride.getDropLatitude(), ride.getDropLongitude(),
-                    "STANDARD" // Hardcoded for v1, should be in request
+                    ride.getVehicleType()
             ).ifPresent(quoteData -> {
                 ride.setFareEstimateId(quoteData.estimateId());
                 ride.setFare((double) quoteData.breakdown().total()); // Base fare estimate

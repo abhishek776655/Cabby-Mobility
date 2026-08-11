@@ -42,6 +42,8 @@ public class RideEntity {
     @Column(nullable = false)
     private Double dropLongitude;
 
+    private String vehicleType;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RideStatus status;

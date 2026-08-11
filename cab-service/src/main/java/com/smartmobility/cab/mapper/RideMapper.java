@@ -17,6 +17,7 @@ public class RideMapper {
                 .pickupLongitude(request.getPickupLongitude())
                 .dropLatitude(request.getDropLatitude())
                 .dropLongitude(request.getDropLongitude())
+                .vehicleType(request.getVehicleType())
                 .status(RideStatus.MATCHING)
                 .build();
     }
@@ -32,6 +33,7 @@ public class RideMapper {
                 .pickupLongitude(ride.getPickupLongitude())
                 .dropLatitude(ride.getDropLatitude())
                 .dropLongitude(ride.getDropLongitude())
+                .vehicleType(ride.getVehicleType())
                 .status(ride.getStatus().name())
                 .fare(ride.getFare())
                 .createdAt(ride.getCreatedAt())

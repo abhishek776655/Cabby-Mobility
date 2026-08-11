@@ -1,6 +1,7 @@
 package com.smartmobility.cab.dto;
 
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -31,4 +32,7 @@ public class RideRequestDTO {
 
     @NotNull
     private Double dropLongitude;
+
+    @NotBlank
+    private String vehicleType;
 }

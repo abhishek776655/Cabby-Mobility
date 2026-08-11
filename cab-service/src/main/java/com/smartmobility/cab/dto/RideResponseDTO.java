@@ -23,6 +23,8 @@ public class RideResponseDTO {
     private Double dropLatitude;
     private Double dropLongitude;
 
+    private String vehicleType;
+
     private String status;
 
     private Double fare;
