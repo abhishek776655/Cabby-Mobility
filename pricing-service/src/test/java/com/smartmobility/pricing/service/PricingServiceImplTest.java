@@ -41,11 +41,15 @@ public class PricingServiceImplTest {
     @Mock
     private SurgeCacheService surgeCacheService;
 
+    @Mock
+    private com.smartmobility.pricing.redis.RateCardCacheService rateCardCacheService;
+
     private PricingServiceImpl pricingService;
 
     @BeforeEach
     void setUp() {
-        pricingService = new PricingServiceImpl(rateCardRepository, fareEstimateRepository, routingServiceClient, surgeCacheService);
+        pricingService = new PricingServiceImpl(rateCardRepository, fareEstimateRepository, routingServiceClient, surgeCacheService, rateCardCacheService);
+        lenient().when(rateCardCacheService.get(any())).thenReturn(Optional.empty());
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.smartmobility.pricing.dto.QuoteAllResponse;
 import com.smartmobility.pricing.entity.FareEstimateEntity;
 import com.smartmobility.pricing.entity.RateCardEntity;
 import com.smartmobility.pricing.exception.RateCardNotFoundException;
+import com.smartmobility.pricing.redis.RateCardCacheService;
 import com.smartmobility.pricing.redis.SurgeCacheService;
 import com.smartmobility.pricing.repository.FareEstimateRepository;
 import com.smartmobility.pricing.repository.RateCardRepository;
@@ -32,13 +33,14 @@ public class PricingServiceImpl {
     private final FareEstimateRepository fareEstimateRepository;
     private final RoutingServiceClient routingServiceClient;
     private final SurgeCacheService surgeCacheService;
+    private final RateCardCacheService rateCardCacheService;
 
     /**
      * Compute and save a fare quote (upfront pricing).
      */
     @Transactional
     public FareQuoteResponse quote(FareQuoteRequest request) {
-        RateCardEntity rateCard = rateCardRepository.findById(request.getVehicleType())
+        RateCardEntity rateCard = loadRateCard(request.getVehicleType())
                 .filter(RateCardEntity::isActive)
                 .orElseThrow(() -> new RateCardNotFoundException("Active rate card not found for: " + request.getVehicleType()));
 
@@ -135,6 +137,14 @@ public class PricingServiceImpl {
                 .build();
     }
 
+    private java.util.Optional<RateCardEntity> loadRateCard(String vehicleType) {
+        return rateCardCacheService.get(vehicleType).or(() -> {
+            java.util.Optional<RateCardEntity> fromDb = rateCardRepository.findById(vehicleType);
+            fromDb.ifPresent(rc -> rateCardCacheService.put(vehicleType, rc));
+            return fromDb;
+        });
+    }
+
     private static List<Coordinate> toDtoCoordinates(List<RoutingServiceClient.Coordinate> source) {
         if (source == null) {
             return List.of();
@@ -159,7 +169,7 @@ public class PricingServiceImpl {
 
         // V1 Finalize: re-run the quote logic to simulate actual trip distance calculation,
         // using the same rate card logic. In the real world, actual GPS distance would be passed here.
-        RateCardEntity rateCard = rateCardRepository.findById(estimate.getVehicleType())
+        RateCardEntity rateCard = loadRateCard(estimate.getVehicleType())
                 .orElseThrow(() -> new RateCardNotFoundException("Rate card missing during finalize"));
 
         RoutingServiceClient.RouteData routeData = routingServiceClient.getRoute(
