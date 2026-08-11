@@ -55,7 +55,7 @@ public class PricingServiceImplTest {
     @Test
     void testQuote_Success() {
         // Arrange
-        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD");
+        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD", null);
         RateCardEntity rateCard = RateCardEntity.builder()
                 .vehicleType("STANDARD")
                 .baseFare(5000)
@@ -98,7 +98,7 @@ public class PricingServiceImplTest {
     @Test
     void testQuote_FallbackHaversine() {
         // Arrange
-        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD");
+        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD", null);
         RateCardEntity rateCard = RateCardEntity.builder()
                 .vehicleType("STANDARD")
                 .baseFare(5000)

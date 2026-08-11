@@ -23,6 +23,9 @@ public class FareEstimateEntity {
     
     @Column(unique = true)
     private String rideId;
+
+    @Column(unique = true)
+    private String idempotencyKey;
     
     private double pickupLat;
     private double pickupLng;

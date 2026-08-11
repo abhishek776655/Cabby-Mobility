@@ -46,7 +46,7 @@ public class PricingControllerTest {
 
     @Test
     void testQuote() throws Exception {
-        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD");
+        FareQuoteRequest request = new FareQuoteRequest(12.0, 77.0, 12.1, 77.1, "STANDARD", null);
         FareQuoteResponse response = FareQuoteResponse.builder()
                 .estimateId(UUID.randomUUID())
                 .currency("INR")

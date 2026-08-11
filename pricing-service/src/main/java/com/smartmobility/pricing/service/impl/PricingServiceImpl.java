@@ -40,6 +40,13 @@ public class PricingServiceImpl {
      */
     @Transactional
     public FareQuoteResponse quote(FareQuoteRequest request) {
+        if (request.getIdempotencyKey() != null) {
+            var existing = fareEstimateRepository.findByIdempotencyKey(request.getIdempotencyKey());
+            if (existing.isPresent()) {
+                return toIdempotentResponse(existing.get());
+            }
+        }
+
         RateCardEntity rateCard = loadRateCard(request.getVehicleType())
                 .filter(RateCardEntity::isActive)
                 .orElseThrow(() -> new RateCardNotFoundException("Active rate card not found for: " + request.getVehicleType()));
@@ -76,6 +83,7 @@ public class PricingServiceImpl {
                 .totalFare(breakdown.getTotal())
                 .surgeMultiplier(breakdown.getSurgeMultiplier())
                 .status("ESTIMATED")
+                .idempotencyKey(request.getIdempotencyKey())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -134,6 +142,33 @@ public class PricingServiceImpl {
                 .estimateSource(estimateSource)
                 .currency("INR")
                 .quotes(quotes)
+                .build();
+    }
+
+    /**
+     * Reconstructs a quote response for an idempotent replay. Polyline/coordinates aren't stored
+     * on FareEstimateEntity, so they're omitted here — the client already received the map data
+     * on the original request that created this estimate.
+     */
+    private FareQuoteResponse toIdempotentResponse(FareEstimateEntity estimate) {
+        FareCalculator.FareBreakdown breakdown = FareCalculator.FareBreakdown.builder()
+                .baseFare(estimate.getBaseFare())
+                .distanceFare(estimate.getDistanceFare())
+                .timeFare(estimate.getTimeFare())
+                .surgeAmount(estimate.getSurgeAmount())
+                .total(estimate.getTotalFare())
+                .surgeMultiplier(estimate.getSurgeMultiplier())
+                .build();
+
+        return FareQuoteResponse.builder()
+                .estimateId(estimate.getId())
+                .breakdown(breakdown)
+                .currency("INR")
+                .estimateSource("CACHED_IDEMPOTENT")
+                .polyline(null)
+                .coordinates(List.of())
+                .distanceMeters(0)
+                .durationSeconds(0)
                 .build();
     }
 

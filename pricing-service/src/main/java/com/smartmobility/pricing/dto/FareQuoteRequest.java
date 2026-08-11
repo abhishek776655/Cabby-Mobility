@@ -22,4 +22,10 @@ public class FareQuoteRequest {
     private Double dropLng;
     @NotBlank
     private String vehicleType;
+    /**
+     * Optional client-supplied key. When set and already seen, quote() returns the existing
+     * estimate instead of inserting a duplicate row — protects against cab-service retrying
+     * a timed-out request.
+     */
+    private String idempotencyKey;
 }

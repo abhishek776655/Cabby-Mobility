@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface FareEstimateRepository extends JpaRepository<FareEstimateEntity, UUID> {
     Optional<FareEstimateEntity> findByRideId(String rideId);
+    Optional<FareEstimateEntity> findByIdempotencyKey(String idempotencyKey);
 }
