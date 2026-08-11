@@ -516,6 +516,8 @@ services:
         condition: service_healthy
       valhalla:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file:
       - ../.env
     mem_limit: 768m
