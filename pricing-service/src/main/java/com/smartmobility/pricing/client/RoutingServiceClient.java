@@ -1,5 +1,6 @@
 package com.smartmobility.pricing.client;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class RoutingServiceClient {
 
     public record Coordinate(double lat, double lng) {}
 
+    @CircuitBreaker(name = "routing-service-get-route", fallbackMethod = "getRouteFallback")
     public Optional<RouteData> getRoute(double originLat, double originLng, double destLat, double destLng) {
         Timer.Sample sample = Timer.start(meterRegistry);
         RouteRequest requestBody = new RouteRequest(originLat, originLng, destLat, destLng, "auto");
@@ -76,6 +78,11 @@ public class RoutingServiceClient {
         
         sample.stop(meterRegistry.timer("client.routing.getRoute", "status", "failure"));
         log.error("All {} attempts to get route failed", MAX_ATTEMPTS);
+        return Optional.empty();
+    }
+
+    Optional<RouteData> getRouteFallback(double originLat, double originLng, double destLat, double destLng, Throwable t) {
+        log.warn("Circuit breaker open or getRoute exhausted, returning empty: {}", t.getMessage());
         return Optional.empty();
     }
 }
