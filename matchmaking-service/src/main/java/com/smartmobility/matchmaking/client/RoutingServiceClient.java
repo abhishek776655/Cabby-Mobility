@@ -3,6 +3,7 @@ package com.smartmobility.matchmaking.client;
 import com.smartmobility.matchmaking.dto.ApiResponse;
 import com.smartmobility.matchmaking.dto.MatrixRequest;
 import com.smartmobility.matchmaking.dto.MatrixResponse;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class RoutingServiceClient {
         this.internalApiSecret = internalApiSecret;
     }
 
+    @CircuitBreaker(name = "matchmaking-routing-get-durations", fallbackMethod = "getDurationsSecondsFallback")
     public Optional<List<Double>> getDurationsSeconds(double pickupLat, double pickupLng, List<MatrixRequest.Location> targets) {
         MatrixRequest request = MatrixRequest.builder()
                 .sources(List.of(MatrixRequest.Location.builder().lat(pickupLat).lng(pickupLng).build()))
@@ -87,6 +89,11 @@ public class RoutingServiceClient {
         // Signal failure explicitly rather than fabricating durations: a fake uniform value
         // would make rankDrivers' sort produce an arbitrary order instead of a safe unranked
         // fallback. Caller must fall back to the pre-ranking driver order on empty.
+        return Optional.empty();
+    }
+
+    Optional<List<Double>> getDurationsSecondsFallback(double pickupLat, double pickupLng, List<MatrixRequest.Location> targets, Throwable t) {
+        log.warn("Circuit breaker open or getDurationsSeconds exhausted, returning empty: {}", t.getMessage());
         return Optional.empty();
     }
 
