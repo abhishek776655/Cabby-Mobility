@@ -6,3 +6,4 @@ CREATE DATABASE matchmaking_db;
 CREATE DATABASE rider_db;
 CREATE DATABASE notification_db;
 CREATE DATABASE pricing_db;
+CREATE DATABASE payment_db;

@@ -1,4 +1,4 @@
-package com.smartmobility.cab.event;
+package com.smartmobility.payment.event;
 
 import lombok.*;
 

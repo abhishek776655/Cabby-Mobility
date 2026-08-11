@@ -558,6 +558,35 @@ services:
       retries: 10
       start_period: 60s
 
+  payment-service:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ../payment-service:/app
+      - maven-cache:/root/.m2
+    command: mvn spring-boot:run
+    deploy:
+      replicas: 1
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      eureka-service-2:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    mem_limit: 768m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8093/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
 volumes:
 
   kafka-data:

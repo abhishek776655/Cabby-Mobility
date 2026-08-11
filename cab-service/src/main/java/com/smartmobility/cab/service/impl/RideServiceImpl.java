@@ -253,6 +253,7 @@ public class RideServiceImpl implements RideService {
                 .driverUserId(updatedRide.getDriverUserId())
                 .riderUserId(updatedRide.getRiderUserId())
                 .completedAt(LocalDateTime.now().toString())
+                .fare(updatedRide.getFare())
                 .build());
 
         // 6. Return response
