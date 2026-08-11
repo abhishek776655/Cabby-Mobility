@@ -16,7 +16,6 @@ const config: ExpoConfig = {
       },
     ],
     "expo-secure-store",
-    "expo-status-bar",
   ],
   ios: {
     bundleIdentifier: "com.anonymous.smart-mobility-rider-app",
