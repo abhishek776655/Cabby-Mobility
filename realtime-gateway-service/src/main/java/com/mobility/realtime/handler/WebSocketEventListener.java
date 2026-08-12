@@ -11,26 +11,32 @@ import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 public class WebSocketEventListener {
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
-    private final AtomicInteger activeConnections;
+    // Spring can publish SessionDisconnectEvent more than once for the same session (once for
+    // a STOMP-level DISCONNECT, again for the underlying WebSocket close) — a raw
+    // increment/decrement counter double-decrements on the duplicate and drifts negative over
+    // time (observed directly: "Total active: -3" in logs). A session-ID set is idempotent by
+    // construction: removing an already-removed id is a no-op, so the size stays correct
+    // regardless of how many times disconnect fires for the same session.
+    private final Set<String> activeSessionIds = ConcurrentHashMap.newKeySet();
 
     public WebSocketEventListener(StompAuthChannelInterceptor stompAuthChannelInterceptor, io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
-        this.activeConnections = new AtomicInteger(0);
-        meterRegistry.gauge("websocket.connections.active", this.activeConnections);
+        meterRegistry.gauge("websocket.connections.active", this.activeSessionIds, Set::size);
     }
 
     @EventListener
     public void handleSessionConnect(SessionConnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        int count = activeConnections.incrementAndGet();
-        log.info("WebSocket connected sessionId={} (Total active: {})", accessor.getSessionId(), count);
+        activeSessionIds.add(accessor.getSessionId());
+        log.info("WebSocket connected sessionId={} (Total active: {})", accessor.getSessionId(), activeSessionIds.size());
     }
 
     @EventListener
@@ -42,9 +48,9 @@ public class WebSocketEventListener {
 
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
-        int count = activeConnections.decrementAndGet();
+        activeSessionIds.remove(event.getSessionId());
         log.info("WebSocket disconnected sessionId={} closeStatus={} (Total active: {})",
-                event.getSessionId(), event.getCloseStatus(), count);
+                event.getSessionId(), event.getCloseStatus(), activeSessionIds.size());
         stompAuthChannelInterceptor.removeSession(event.getSessionId());
     }
 }

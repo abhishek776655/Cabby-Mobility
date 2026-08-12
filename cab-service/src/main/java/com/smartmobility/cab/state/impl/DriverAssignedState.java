@@ -23,8 +23,13 @@ public class DriverAssignedState implements RideState {
         throw new InvalidStateTransitionException("Ride not started");
     }
 
-public void cancel(RideEntity ride) {
-        throw new InvalidStateTransitionException("Cannot cancel - driver already assigned");
+    // Rider-initiated cancel is still allowed once a driver is assigned but before pickup
+    // (ONGOING) — matches the app's LiveTrackingScreen, which offers Cancel through this exact
+    // status. RideServiceImpl.cancelRide already publishes RideCancelledEvent with the assigned
+    // driverUserId so matchmaking releases their reservation; this state just has to allow the
+    // transition instead of rejecting it outright.
+    public void cancel(RideEntity ride) {
+        ride.setStatus(RideStatus.CANCELLED);
     }
 
     public void failNoDriver(RideEntity ride) {

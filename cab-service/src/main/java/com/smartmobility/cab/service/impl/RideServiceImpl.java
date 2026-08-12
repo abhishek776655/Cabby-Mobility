@@ -257,10 +257,14 @@ public class RideServiceImpl implements RideService {
                 .build());
 
         // 6. Return response
-        if (updatedRide.getFare() != null) {
-            fareDistribution.record(updatedRide.getFare());
+        try {
+            if (updatedRide.getFare() != null) {
+                fareDistribution.record(updatedRide.getFare());
+            }
+            ridesCompletedCounter.increment();
+        } catch (Exception ex) {
+            log.warn("Failed to record ride-completion metrics for ride {}: {}", rideId, ex.getMessage());
         }
-        ridesCompletedCounter.increment();
         return RideMapper.toResponseDTO(updatedRide);
     }
 
@@ -345,10 +349,17 @@ public class RideServiceImpl implements RideService {
                         .build()
         );
         
-        if (ride.getCreatedAt() != null) {
-            matchmakingLatencyTimer.record(Duration.between(ride.getCreatedAt(), LocalDateTime.now()));
+        // Metrics must never be able to roll back the state transition above — a Timer/Counter
+        // recording failure (e.g. a negative duration) would otherwise abort this whole
+        // @Transactional method and silently undo the driver assignment.
+        try {
+            if (ride.getCreatedAt() != null) {
+                matchmakingLatencyTimer.record(Duration.between(ride.getCreatedAt(), LocalDateTime.now()));
+            }
+            driverAllocatedCounter.increment();
+        } catch (Exception ex) {
+            log.warn("Failed to record driver-assignment metrics for ride {}: {}", rideId, ex.getMessage());
         }
-        driverAllocatedCounter.increment();
     }
 
     @Transactional
