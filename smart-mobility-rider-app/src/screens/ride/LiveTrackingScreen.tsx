@@ -15,7 +15,7 @@ const CANCELLABLE_STATUSES = new Set(["REQUESTED", "MATCHING", "DRIVER_ASSIGNED"
 export function LiveTrackingScreen({ route, navigation }: Props) {
   const { rideId } = route.params;
   const { ride } = useRidePolling(rideId);
-  const { connected } = useTripSocket(rideId);
+  const { connected, error: socketError } = useTripSocket(rideId);
   const driverLocation = useRideStore((s) => s.driverLocation);
   const clearRide = useRideStore((s) => s.clearRide);
 
@@ -73,10 +73,15 @@ export function LiveTrackingScreen({ route, navigation }: Props) {
         )}
       </MapView>
       {!connected && (
-        <YStack position="absolute" top="$3" left="$4" right="$4" backgroundColor="$yellow4" padding="$2" borderRadius="$3">
+        <YStack position="absolute" top="$3" left="$4" right="$4" backgroundColor="$yellow4" padding="$2" borderRadius="$3" gap="$1">
           <Text fontSize="$2" textAlign="center">
             Reconnecting to live tracking…
           </Text>
+          {socketError && (
+            <Text fontSize="$1" textAlign="center" color="$red10">
+              {socketError}
+            </Text>
+          )}
         </YStack>
       )}
       <YStack position="absolute" bottom="$6" left="$4" right="$4" gap="$2">

@@ -7,14 +7,16 @@ import { useRideStore } from "@/store/rideStore";
  * carries ride-status changes (confirmed against realtime-gateway-service's broadcast wiring).
  * Status must still come from polling GET /rides/{rideId} (see useRidePolling).
  */
-export function useTripSocket(rideId: string | null): { connected: boolean } {
+export function useTripSocket(rideId: string | null): { connected: boolean; error: string | null } {
   const applyLocationUpdate = useRideStore((s) => s.applyLocationUpdate);
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!rideId) {
       tripStompClient.disconnect();
       setConnected(false);
+      setError(null);
       return;
     }
 
@@ -22,6 +24,7 @@ export function useTripSocket(rideId: string | null): { connected: boolean } {
 
     const interval = setInterval(() => {
       setConnected(tripStompClient.isConnected());
+      setError(tripStompClient.getLastError());
     }, 2000);
 
     return () => {
@@ -30,5 +33,5 @@ export function useTripSocket(rideId: string | null): { connected: boolean } {
     };
   }, [rideId, applyLocationUpdate]);
 
-  return { connected };
+  return { connected, error };
 }

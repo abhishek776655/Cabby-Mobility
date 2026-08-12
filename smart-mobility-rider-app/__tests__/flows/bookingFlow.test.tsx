@@ -13,6 +13,10 @@ import { useRideStore } from "@/store/rideStore";
 jest.mock("@/api/fares");
 jest.mock("@/api/rides");
 jest.mock("@/api/riders");
+jest.mock("expo-location", () => ({
+  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: "denied" }),
+  getCurrentPositionAsync: jest.fn().mockResolvedValue({ coords: { latitude: 0, longitude: 0 } }),
+}));
 
 function renderWithProvider(children: React.ReactElement) {
   return render(
@@ -36,6 +40,19 @@ describe("booking flow: FareCompare -> ConfirmBooking -> POST /rides", () => {
     jest.clearAllMocks();
     useAuthStore.setState({ userId: 7, status: "authenticated" });
     useRideStore.setState({ activeRideId: null, rideStatus: null, fareQuote: null });
+    (ridersApi.getMe as jest.Mock).mockResolvedValue({
+      id: 1,
+      userId: 7,
+      rating: 4.8,
+      preferredPaymentMethod: "CASH",
+    });
+    (ridersApi.updatePreferences as jest.Mock).mockResolvedValue({
+      id: 1,
+      userId: 7,
+      rating: 4.8,
+      preferredPaymentMethod: "CASH",
+    });
+    (ridersApi.getLocations as jest.Mock).mockResolvedValue([]);
   });
 
   it("selecting a fare on FareCompare navigates to ConfirmBooking with that quote", async () => {
@@ -60,8 +77,10 @@ describe("booking flow: FareCompare -> ConfirmBooking -> POST /rides", () => {
       />
     );
 
-    await waitFor(() => expect(screen.getByText("PREMIUM")).toBeTruthy());
-    fireEvent.press(screen.getByText("PREMIUM"));
+    await waitFor(() => expect(screen.getByText("Premium")).toBeTruthy());
+    fireEvent.press(screen.getByText("Premium"));
+    await waitFor(() => expect(screen.getByText(/Book Premium/)).toBeTruthy());
+    fireEvent.press(screen.getByText(/Book Premium/));
 
     expect(navigate).toHaveBeenCalledWith(
       "ConfirmBooking",
@@ -112,8 +131,8 @@ describe("booking flow: FareCompare -> ConfirmBooking -> POST /rides", () => {
       />
     );
 
-    await waitFor(() => expect(screen.getByText(/Paying with CASH/)).toBeTruthy());
-    fireEvent.press(screen.getByText("Confirm booking"));
+    await waitFor(() => expect(screen.getByText(/Paying with Cash/)).toBeTruthy());
+    fireEvent.press(screen.getByText(/Confirm/));
 
     await waitFor(() =>
       expect(ridesApi.createRide).toHaveBeenCalledWith(

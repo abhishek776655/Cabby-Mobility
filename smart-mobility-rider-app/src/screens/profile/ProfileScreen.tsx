@@ -12,10 +12,14 @@ export function ProfileScreen() {
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [newLabel, setNewLabel] = useState("");
   const [newAddress, setNewAddress] = useState("");
+  const [loadError, setLoadError] = useState(false);
 
   const refresh = () => {
-    getMe().then(setProfile);
-    getLocations().then(setLocations);
+    setLoadError(false);
+    getMe()
+      .then(setProfile)
+      .catch(() => setLoadError(true));
+    getLocations().then(setLocations).catch(() => {});
   };
 
   useEffect(refresh, []);
@@ -34,6 +38,19 @@ export function ProfileScreen() {
     setNewAddress("");
     refresh();
   };
+
+  if (loadError) {
+    return (
+      <YStack flex={1} justifyContent="center" alignItems="center" gap="$4" padding="$4">
+        <Text color="$red10" textAlign="center">
+          Couldn't load your profile. Your session may be stale.
+        </Text>
+        <Button theme="red_active" onPress={logout}>
+          Log out
+        </Button>
+      </YStack>
+    );
+  }
 
   if (!profile) {
     return (

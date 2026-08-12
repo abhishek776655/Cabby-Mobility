@@ -69,6 +69,19 @@ export interface QuoteAllResponse {
   quotes: VehicleQuote[];
 }
 
+// --- routing-service (address autocomplete) ---
+
+export interface GeocodeSuggestion {
+  /** Primary line, e.g. "Qutub Minar Complex". */
+  label: string;
+  /** Secondary line, e.g. "Baba Shrichand Marg, South Delhi"; may be empty. */
+  description: string;
+  lat: number;
+  lng: number;
+  /** Raw OSM value ("monument", "suburb", "station", ...) for choosing a row icon. */
+  kind: string | null;
+}
+
 // --- cab-service ---
 
 // Cab-service's own ride status (RideEntity.RideStatus) — the AUTHORITATIVE status,

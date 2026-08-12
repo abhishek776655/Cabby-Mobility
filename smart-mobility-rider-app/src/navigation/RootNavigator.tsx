@@ -50,7 +50,13 @@ export function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="App" component={AppTabs} />
-        <Stack.Screen name="Booking" component={BookingStack} options={{ headerShown: false }} />
+        {/* Rises over the tabs rather than pushing in from the side: the booking flow opens
+            as a sheet on top of Home, and Home's own panel slides down to meet it. */}
+        <Stack.Screen
+          name="Booking"
+          component={BookingStack}
+          options={{ headerShown: false, animation: "slide_from_bottom" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
