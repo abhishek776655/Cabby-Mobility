@@ -679,6 +679,30 @@
           "response": []
         },
         {
+          "name": "Retry Match (Rider)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/rides/{{active_ride_id}}/retry",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "rides",
+                "{{active_ride_id}}",
+                "retry"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Admin Match Ride (unreachable - no ADMIN role exists)",
           "request": {
             "method": "POST",
@@ -939,6 +963,78 @@
                 "internal",
                 "dispatch",
                 "{{active_ride_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct Routing Service - Get Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Secret",
+                "value": "secret"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originLat\": {{active_pickup_lat}},\n  \"originLng\": {{active_pickup_lng}},\n  \"destLat\": 28.6129,\n  \"destLng\": 77.2295,\n  \"costingModel\": \"auto\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{routing_service_url}}/internal/route",
+              "host": [
+                "{{routing_service_url}}"
+              ],
+              "path": [
+                "internal",
+                "route"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct Routing Service - Get Matrix",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Secret",
+                "value": "secret"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sources\": [\n    {\n      \"lat\": 28.6139,\n      \"lng\": 77.209\n    }\n  ],\n  \"targets\": [\n    {\n      \"lat\": 28.6129,\n      \"lng\": 77.2295\n    },\n    {\n      \"lat\": 28.62,\n      \"lng\": 77.21\n    }\n  ],\n  \"costingModel\": \"auto\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{routing_service_url}}/internal/matrix",
+              "host": [
+                "{{routing_service_url}}"
+              ],
+              "path": [
+                "internal",
+                "matrix"
               ]
             }
           },
@@ -1801,6 +1897,97 @@
           }
         },
         {
+          "name": "Get Fare Quote (Single Vehicle)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLat\": {{active_pickup_lat}},\n  \"pickupLng\": {{active_pickup_lng}},\n  \"dropLat\": 28.6129,\n  \"dropLng\": 77.2295,\n  \"vehicleType\": \"STANDARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/fares/quote",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "fares",
+                "quote"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success === true && jsonData.data && jsonData.data.estimateId) {",
+                  "    pm.collectionVariables.set(\"fare_estimate_id\", jsonData.data.estimateId);",
+                  "    console.log(\"Saved fare_estimate_id: \" + jsonData.data.estimateId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Finalize Fare",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rider_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": \"{{active_ride_id}}\",\n  \"estimateId\": {{fare_estimate_id}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/fares/finalize",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "fares",
+                "finalize"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get Fare Estimate Detail",
           "request": {
             "method": "GET",
@@ -1980,6 +2167,21 @@
     },
     {
       "key": "saved_location_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "routing_service_url",
+      "value": "http://localhost:8097",
+      "type": "string"
+    },
+    {
+      "key": "pricing_service_url",
+      "value": "http://localhost:8092",
+      "type": "string"
+    },
+    {
+      "key": "fare_estimate_id",
       "value": "",
       "type": "string"
     }

@@ -26,20 +26,20 @@ Kept intentionally light — this is a CRUD-adjacent calculation service, not a 
 ## 4. Package Structure
 ```
 pricing-service/src/main/java/com/smartmobility/pricing/
-├── controller/        # PricingController (internal REST, X-Internal-Secret)
+├── controller/        # PricingController (/internal/fares/**), SurgeController (/internal/surge/**)
 ├── service/
 │   └── impl/          # PricingServiceImpl — orchestrates calculator + repo + redis + routing client
 ├── domain/
-│   ├── FareCalculator.java     # pure business logic, no Spring deps
-│   └── FareBreakdown.java      # value object
-├── entity/             # FareEstimate, RateCard (JPA)
+│   └── FareCalculator.java     # pure business logic, no Spring deps
+├── entity/             # FareEstimateEntity, RateCardEntity (JPA)
 ├── repository/         # FareEstimateRepository, RateCardRepository
-├── dto/                # FareQuoteRequest/Response, FareFinalizeRequest/Response
+├── dto/                # FareQuoteRequest/Response, QuoteAllRequest/Response, FareFinalizeRequest/Response, Coordinate, ApiResponse
 ├── client/             # RoutingServiceClient (mirrors matchmaking-service's pattern)
 ├── redis/              # SurgeCacheService (get/set multiplier per zone, TTL)
-├── config/             # RestClientConfig, RedisConfig, InternalApiSecurityFilter
+├── config/             # RestClientConfig, InternalApiSecurityFilter, DataSeeder (seeds default rate cards on startup)
 └── exception/          # RateCardNotFoundException, GlobalExceptionHandler
 ```
+`FareCalculator` returns fields directly on `FareQuoteResponse`/`FareEstimateEntity` (baseFare, distanceFare, timeFare, surgeAmount, totalFare, surgeMultiplier) rather than a separate `FareBreakdown` value object.
 **Dependency rule**: `domain/` has zero imports from `entity/`, `repository/`, `client/`, or Spring — `service/impl` maps DTOs/entities into domain types, calls `FareCalculator`, maps back. This keeps fare-math testable without Postgres/Redis/HTTP mocks, without forcing the rest of the codebase's simpler layering to change.
 
 ## 5. Tech Stack
@@ -102,14 +102,16 @@ All endpoints require `X-Internal-Secret` header, same filter as `routing-servic
 { "success": true, "data": { "breakdown": { ... }, "total": 25400 } }
 ```
 
-### 7.3 `GET /internal/fares/{rideId}` — audit lookup for `payment-service`
+### 7.3 `POST /internal/fares/quote-all` — quote every active vehicle type in one call (`QuoteAllRequest`/`QuoteAllResponse`), avoids N sequential `/quote` calls when `cab-service` shows a fare comparison across vehicle types
 
-### 7.4 `PUT /internal/surge/{zoneId}` — ops-only, sets multiplier + TTL in Redis
+### 7.4 `GET /internal/fares/{rideId}` — audit lookup, returns the full `FareEstimateEntity` (for `payment-service` reconciliation)
+
+### 7.5 `PUT /internal/surge/{zoneId}` (`SurgeController`) — ops-only, params `multiplier` + `ttlSeconds` (default 600), sets multiplier + TTL in Redis via `SurgeCacheService`
 
 ## 8. Data Model
-**Postgres** (`pricing_service` DB, add to `docker/init.sql`):
-- `rate_cards(vehicle_type PK, base_fare, per_km_rate, per_min_rate, min_fare, cancellation_fee, active, updated_at)`
-- `fare_estimates(id PK, ride_id NULLABLE UNIQUE, pickup_lat, pickup_lng, drop_lat, drop_lng, vehicle_type, base_fare, distance_fare, time_fare, surge_amount, total, surge_multiplier, status, created_at, finalized_at)`
+**Postgres** (`pricing_service` DB):
+- `rate_cards(vehicle_type PK, base_fare, per_km_rate, per_min_rate, min_fare, cancellation_fee, active, updated_at)` — seeded on startup by `DataSeeder`
+- `fare_estimates(id UUID PK, ride_id UNIQUE, pickup_lat, pickup_lng, drop_lat, drop_lng, vehicle_type, base_fare, distance_fare, time_fare, surge_amount, total_fare, surge_multiplier, status, created_at, updated_at)` — `status` ∈ `ESTIMATED`/`FINALIZED`/`EXPIRED`
 
 **Redis keys**:
 - `surge:{zoneId}` → multiplier float, TTL ~10 min (re-evaluated by future demand job)
@@ -122,13 +124,18 @@ All endpoints require `X-Internal-Secret` header, same filter as `routing-servic
 - Zipkin traces the quote→routing round-trip, same as matchmaking's routing calls.
 - Client-side retry (max 3 attempts) on `routing-service` calls, matching `matchmaking-service`'s existing policy.
 
-## 10. Build Checklist
-1. Scaffold `pricing-service` module (pom.xml, application.properties, Eureka client config) — copy `routing-service`'s bootstrap for the REST-client parts, `notification-service`'s for the JPA/Postgres parts.
-2. Add `pricing_service` DB + tables to `docker/init.sql`; add service block to `docker/docker-compose.yml` (port 8092, depends_on postgres+redis+eureka).
-3. Implement `FareCalculator` + unit tests first (pure logic, no Spring context needed) — this is the one part worth TDD-ing.
-4. Implement `RoutingServiceClient` (copy `matchmaking-service`'s `RoutingServiceClient` pattern), `SurgeCacheService`, repositories, `PricingServiceImpl`, `PricingController`.
-5. Wire `InternalApiSecurityFilter` (copy from `routing-service`/`location-service`).
-6. Add Gateway route for `pricing routes` (already referenced in `SmartMobility.md` diagram — verify gateway config has the actual route rule, not just the diagram).
-7. Wire `cab-service`: call `/internal/fares/quote` during ride creation (before/alongside matchmaking dispatch), call `/internal/fares/finalize` in the ride-completion path (`RideServiceImpl`).
-8. Seed initial `rate_cards` rows via `init.sql` for existing vehicle types.
-9. Validate: quote latency < 200ms (NFR), fallback path exercised by killing `routing-service` locally, surge multiplier change reflected within its Redis TTL.
+## 10. Build Status — Implemented
+All items below are built and wired, not pending:
+1. `pricing-service` module scaffolded, Eureka-registered, port 8092.
+2. `pricing_service` DB + `rate_cards`/`fare_estimates` tables; `docker-compose.yml` service block (depends_on postgres+redis+eureka).
+3. `FareCalculator` implemented as pure domain logic (no Spring deps).
+4. `RoutingServiceClient`, `SurgeCacheService`, repositories, `PricingServiceImpl`, `PricingController`, `SurgeController` implemented.
+5. `InternalApiSecurityFilter` wired on all `/internal/**` endpoints.
+6. Gateway route for pricing-service present in `gateway-service/src/main/resources/application.properties`.
+7. `cab-service` wired via `client/PricingServiceClient.java`, called from `RideServiceImpl`.
+8. `rate_cards` seeded on startup via `config/DataSeeder.java` (not `init.sql`).
+
+**Not yet verified/open items:**
+- Quote latency NFR (<200ms) not load-tested against this specific endpoint (general pressure scripts exist under `scripts/` but not pricing-specific).
+- Fallback path confirmed implemented (`fallbackHaversineRoute` in `PricingServiceImpl`, `estimateSource="FALLBACK"` vs `"VALHALLA"`) — not yet exercised under a chaos/kill test.
+- No admin/ops auth beyond the shared `X-Internal-Secret` on `PUT /internal/surge/{zoneId}` — anyone with the internal secret can move surge pricing; fine for internal-only v1, revisit if this is ever exposed further.

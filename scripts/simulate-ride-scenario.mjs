@@ -195,7 +195,7 @@ function buildDriverAccountsFromSession(sessionData, fallbackPlan) {
   return fallbackPlan.drivers;
 }
 
-export function createRideRequestPayload({ riderUserId, pickup, drop }) {
+export function createRideRequestPayload({ riderUserId, pickup, drop, vehicleType = "STANDARD" }) {
   return {
     riderUserId,
     pickupLocation: pickup.label,
@@ -203,7 +203,8 @@ export function createRideRequestPayload({ riderUserId, pickup, drop }) {
     pickupLatitude: pickup.lat,
     pickupLongitude: pickup.lng,
     dropLatitude: drop.lat,
-    dropLongitude: drop.lng
+    dropLongitude: drop.lng,
+    vehicleType
   };
 }
 

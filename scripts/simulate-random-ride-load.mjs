@@ -1061,18 +1061,33 @@ async function runRandomRideLoad(args) {
     }
 
     for (const driver of driverAccounts) {
-      await withAuthRetry({
-        gatewayUrl: args.gatewayUrl,
-        accounts: [driver],
-        label: `Driver online for ${driver.email}`,
-        action: () => goDriverOnline({
-          gatewayUrl: args.gatewayUrl,
-          token: driver.token,
-          driverUserId: driver.userId,
-          lat: driver.lat,
-          lng: driver.lng
-        })
-      });
+      // driver-service creates the driver profile asynchronously off the "user.created" Kafka
+      // event, so a driver can 404 ("Driver not found", surfaced by location-service as a 500)
+      // for a moment right after registration. Retry with backoff instead of failing the run.
+      const maxOnlineAttempts = 6;
+      for (let attempt = 1; attempt <= maxOnlineAttempts; attempt += 1) {
+        try {
+          await withAuthRetry({
+            gatewayUrl: args.gatewayUrl,
+            accounts: [driver],
+            label: `Driver online for ${driver.email}`,
+            action: () => goDriverOnline({
+              gatewayUrl: args.gatewayUrl,
+              token: driver.token,
+              driverUserId: driver.userId,
+              lat: driver.lat,
+              lng: driver.lng
+            })
+          });
+          break;
+        } catch (error) {
+          if (attempt === maxOnlineAttempts) {
+            throw error;
+          }
+          console.warn(`[load] Driver online for ${driver.email} not ready yet (attempt ${attempt}/${maxOnlineAttempts}); retrying...`);
+          await delay(1000);
+        }
+      }
       console.log(`[load] Driver online: ${driver.email} -> user ${driver.userId} [${driver.mode}]`);
     }
 
