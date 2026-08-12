@@ -109,4 +109,15 @@ public class FallbackController {
                 )
         ));
     }
+
+    @RequestMapping("/fallback/geocode")
+    public Mono<ResponseEntity<Map<String, Object>>> geocodeFallback() {
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                Map.of(
+                        "status", 503,
+                        "error", "SERVICE_UNAVAILABLE",
+                        "message", "Address search temporarily unavailable"
+                )
+        ));
+    }
 }

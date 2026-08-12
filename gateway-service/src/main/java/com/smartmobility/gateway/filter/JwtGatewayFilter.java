@@ -34,7 +34,8 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/matchmaking/**",
                     "/riders/**",
                     "/fares/**",
-                    "/wallet/**"
+                    "/wallet/**",
+                    "/geocode/**"
             ),
             "DRIVER", Set.of(
                     "/driver/**",
@@ -56,7 +57,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                     "/matchmaking/**",
                     "/riders/**",
                     "/fares/**",
-                    "/wallet/**"
+                    "/wallet/**",
+                    // Address autocomplete for the pickup/drop inputs.
+                    "/geocode/**"
             )
     );
 
